@@ -14,7 +14,7 @@ INSTALLATION - EASIEST WAY
 Von Hamos XDS was tested on 2015-12-12 with the following Miniconda packages versions:
 
     package                    |            build    |      size
-    ---------------------------|--------------------------------
+    ---------------------------|---------------------|----------
     libgfortran-1.0            |                0    |    156 KB
     libpng-1.6.17              |                0    |    193 KB
     pixman-0.32.6              |                0    |    3.7 MB
@@ -36,5 +36,5 @@ Von Hamos XDS was tested on 2015-12-12 with the following Miniconda packages ver
     py2cairo-1.10.0            |           py27_2    |     31 KB
     pyqt-4.11.4                |           py27_1    |    3.2 MB
     matplotlib-1.5.0           |      np110py27_0    |    8.0 MB
-    ------------------------------------------------------------
+    ---------------------------|---------------------|----------
                                |            TOTAL    |   81.1 MB
