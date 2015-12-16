@@ -140,15 +140,12 @@ class Application(ttk.Frame):
         # Source: http://stackoverflow.com/a/11180300/1501575
         try:
             root_dir = self.root_dir
-            icon_16  = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_16x16.png"))
-            icon_32  = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_32x32.png"))
-            icon_48  = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_48x48.png"))
-            icon_64  = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_64x64.png"))
-            icon_128 = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_128x128.png"))
-            icon_256 = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_256x256.png"))
-            root.tk.call('wm', 'iconphoto', window._w, '-default', icon_16, icon_32, icon_48, icon_64, icon_128, icon_256)
+            icon_32  = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_vhpt_32x32.gif"))
+            icon_64  = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_vhpt_64x64.gif"))
+            icon_128 = tk.PhotoImage(file=os.path.join(root_dir, 'icons', "logo_xds_vhpt_128x128.gif"))
+            root.tk.call('wm', 'iconphoto', window._w, '-default', icon_32, icon_64, icon_128)
         except:
-            pass
+            self.debug_log('Error loading application icon')
 
     def __init__(self, master=None):
         self.root_dir = sys.path[0]
