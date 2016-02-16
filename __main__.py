@@ -1,27 +1,32 @@
 # -*- coding: utf-8 -*-
 
-# Von Hamos Preview Tool for XDS Beamline
+# Von Hamos Preview Tool for XDS Beamline of LNLS
 # Author: Rafael Pagliuca <rafael.pagliuca@lnls.br>
-# Date created: 2015-12-02
-# Date modified: 2015-12-11
+# Created: 2015-12-02
 
 # ===== DONE =====
-# (X) Checkbox to show multiple plots or sum (integral)
-# (X) Field option for denominator (divide by I0)
-# (X) Allow normalization (choose between max intensity or another arbitrary value to define as 1)
-# (X) Allow export plot data as CSV file
-# (X) Allow calibration: allow double-click over elastic scattered beam peaks on RXES maps
-# (X) Application icon
-# (X) Manual calibration
-# (X) Normalize XES
+
+# Modified: 2016-02-15
+# * Replaced Treeview for tkintertable for displaying of scan data
+
+# Modified: 2015-12-5 - 2015-12-11
+# * Checkbox to show multiple plots or sum (integral)
+# * Field option for denominator (divide by I0)
+# * Allow normalization (choose between max intensity or another arbitrary value to define as 1)
+# * Allow export plot data as CSV file
+# * Allow calibration: allow double-click over elastic scattered beam peaks on RXES maps
+# * Application icon
+# * Manual calibration
+# * Normalize XES
+
 # ===== TO DO =====
 # * Plot together two plots of the same type
 # * Choose colormap and vmin on RXES
-# * Add option to xormalize plots individually instead of one normalization per axes
+# * Add option to normalize plots individually instead of one normalization per axes
 # * Plot energy transfer RXES
 # * Integration with Pilatus image viewer
 # * Allow selecting and plotting multiple scans
-# * Allow export data from RXES
+# * Allow exporting data from RXES colormaps
 
 import os
 import Tkinter as tk
@@ -33,15 +38,21 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import ConfigParser
+import random, string
 # Custom classes
 from classes.spec_parser import *
 from classes.custom_widgets import *
 from classes.plots import *
 from classes.tools import *
+# Third party local libraries
+import lib.tkintertable
+import lib.tkintertable.TableModels
+import lib.tkintertable.Tables
 
 class Application(ttk.Frame):
 
     def createWidgets(self):
+        ''' Create the visual objects (widgets): buttons, text entries, etc. '''
 
         self.widgets = dict()
 
@@ -52,43 +63,51 @@ class Application(ttk.Frame):
         self.widgets['btn_open'].grid(row=0, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Pilatus Columns
-        self.widgets['entry_pilatus_columns'] = LabeledEntry(self, 'ROIs Cols.: ', 'pl*')
+        self.widgets['entry_pilatus_columns'] = LabeledEntry(self, 'Signal Cols.: ', 'pl0-pl486')
         self.widgets['entry_pilatus_columns'].grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+
+        # Entry Background1 Columns
+        self.widgets['entry_pilatus_bg1_columns'] = LabeledEntry(self, 'Background 1 Cols.: ', 'pl487-pl973')
+        self.widgets['entry_pilatus_bg1_columns'].grid(row=2, column=0, sticky="nsew", pady=(0, 10))
+
+        ## Entry Background2 Columns
+        self.widgets['entry_pilatus_bg2_columns'] = LabeledEntry(self, 'Background 2 Cols.: ', 'pl974-pl1460')
+        self.widgets['entry_pilatus_bg2_columns'].grid(row=3, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Energy Column
         self.widgets['entry_energy_column'] = LabeledEntry(self, 'Energy Col.: ', 'dcm_energy')
-        self.widgets['entry_energy_column'].grid(row=2, column=0, sticky="nsew", pady=(0, 10))
+        self.widgets['entry_energy_column'].grid(row=4, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Denominator (I0) Column
         self.widgets['entry_i0_column'] = LabeledEntry(self, 'I0 Col.: ', 'I0')
-        self.widgets['entry_i0_column'].grid(row=3, column=0, sticky="nsew", pady=(0, 10))
+        self.widgets['entry_i0_column'].grid(row=5, column=0, sticky="nsew", pady=(0, 10))
 
         # Button XES
         self.widgets['btn_xes'] = ttk.Button(self)
         self.widgets['btn_xes']["text"] = "XES"
         self.widgets['btn_xes']["command"] = self.action_xes
-        self.widgets['btn_xes'].grid(row=4, column=0, sticky="nsew", pady=(0, 2))
+        self.widgets['btn_xes'].grid(row=6, column=0, sticky="nsew", pady=(0, 2))
 
         # Button HERFD
         self.widgets['btn_herfd'] = ttk.Button(self)
         self.widgets['btn_herfd']["text"] = "HERFD"
         self.widgets['btn_herfd']["command"] = self.action_herfd
-        self.widgets['btn_herfd'].grid(row=5, column=0, sticky="nsew", pady=(0, 2))
+        self.widgets['btn_herfd'].grid(row=7, column=0, sticky="nsew", pady=(0, 2))
 
         # Button RXES
         self.widgets['btn_rxes'] = ttk.Button(self)
         self.widgets['btn_rxes']["text"] = "RXES"
         self.widgets['btn_rxes']["command"] = self.action_rxes
-        self.widgets['btn_rxes'].grid(row=6, column=0, sticky="nsew", pady=(0, 2))
+        self.widgets['btn_rxes'].grid(row=8, column=0, sticky="nsew", pady=(0, 2))
 
         # Scans listbox
         self.widgets['scans_listbox'] = ScrollableListbox(self)
-        self.widgets['scans_listbox'].grid(row=7, column=0, rowspan=3, sticky="nsew")
+        self.widgets['scans_listbox'].grid(row=9, column=0, rowspan=3, sticky="nsew")
         self.widgets['scans_listbox'].bind('<<ListboxSelect>>', self.action_scans_listbox_select)
 
         # Calibration Label
         self.widgets['cb_calib'] = Checkbox(self, text='Use calibration')
-        self.widgets['cb_calib'].grid(row=10, column=0, rowspan=1, sticky="nsew", pady=(10, 0))
+        self.widgets['cb_calib'].grid(row=12, column=0, rowspan=1, sticky="nsew", pady=(10, 0))
 
         # Calibration listbox
         self.widgets['calib_tree'] = ScrollableTreeview(self, height=4)
@@ -99,16 +118,15 @@ class Application(ttk.Frame):
             self.widgets['calib_tree'].column(col_name, width=20)
         # Hide first empty column
         self.widgets['calib_tree']['show']= 'headings'
-        self.widgets['calib_tree'].grid(row=11, column=0, sticky="nsew")
+        self.widgets['calib_tree'].grid(row=13, column=0, sticky="nsew")
 
         # Data points listbox
-        self.widgets['data_tree'] = ScrollableTreeview(self, selectmode=tk.EXTENDED)
-        self.widgets['data_tree'].editable = False
-        self.widgets['data_tree'].grid(row=0, column=1, rowspan=8, sticky="nsew", padx=(10, 0))
+        self.widgets['data_frame'] = ttk.Frame(self)
+        self.widgets['data_frame'].grid(row=0, column=1, rowspan=10, sticky="nsew", padx=(10, 0))
 
         # Headers label
         self.widgets['label_headers'] = ttk.Label(self, text='Scan header:')
-        self.widgets['label_headers'].grid(row=8, column=1, rowspan=1, sticky="nsew", pady=(10, 0), padx=(10, 0))
+        self.widgets['label_headers'].grid(row=10, column=1, rowspan=1, sticky="nsew", pady=(10, 0), padx=(10, 0))
 
         # Headers listbox
         self.widgets['tree_headers'] = ScrollableTreeview(self, height=4)
@@ -119,24 +137,24 @@ class Application(ttk.Frame):
             self.widgets['tree_headers'].column(col_name, width=20)
         # Hide first empty column
         self.widgets['tree_headers']['show']= 'headings'
-        self.widgets['tree_headers'].grid(row=9, column=1, sticky="nsew", padx=(10, 0))
+        self.widgets['tree_headers'].grid(row=11, column=1, sticky="nsew", padx=(10, 0))
 
         # Log Label
         self.widgets['log_label'] = ttk.Label(self, text='Log:')
-        self.widgets['log_label'].grid(row=10, column=1, rowspan=1, sticky="nsew", pady=(10, 0), padx=(10, 0))
+        self.widgets['log_label'].grid(row=12, column=1, rowspan=1, sticky="nsew", pady=(10, 0), padx=(10, 0))
 
         # Log listbox
         self.widgets['log_listbox'] = ScrollableListbox(self, height=4)
-        self.widgets['log_listbox'].grid(row=11, column=1, sticky="nsew", padx=(10, 0))
+        self.widgets['log_listbox'].grid(row=13, column=1, sticky="nsew", padx=(10, 0))
 
         # Do not resize buttons column
         tk.Grid.columnconfigure(self, 0, weight=0)
         tk.Grid.rowconfigure(self, 0, weight=0)
         tk.Grid.columnconfigure(self, 1, weight=1)
-        tk.Grid.rowconfigure(self, 7, weight=1)
+        tk.Grid.rowconfigure(self, 9, weight=1)
 
     def set_window_icon(self, window=None):
-        # Set window icon
+        # Set the icon for the graphical window
         # Source: http://stackoverflow.com/a/11180300/1501575
         try:
             root_dir = self.root_dir
@@ -148,6 +166,7 @@ class Application(ttk.Frame):
             self.debug_log('Error loading application icon')
 
     def __init__(self, master=None):
+
         self.root_dir = sys.path[0]
         self.default_open_dir = self.root_dir
         self.load_config_ini()
@@ -181,23 +200,18 @@ class Application(ttk.Frame):
         self.action_scans_listbox_select()
 
     def list_scan_data(self, scan_num):
-        self.widgets['data_tree'].clear()
         scan_data = self.spec_scans[scan_num]
         self.list_scan_headers(scan_num)
-        self.widgets['data_tree']['columns'] = scan_data['columns_names']
-        for col_name in scan_data['columns_names']:
-            self.widgets['data_tree'].heading(col_name, text=col_name)
-            self.widgets['data_tree'].column(col_name, width=60)
-
-        # Define small width for first column
-        self.widgets['data_tree'].column('#0', width=0)
-
-        # Append columns values and underlying object into a treeview 
-        index = 0
-        for data_dict in scan_data['data_dict']:
-            self.widgets['data_tree'].append(scan_data['data_values'][index], data_dict)
-            index += 1
-        self.widgets['data_tree'].select_all()
+        # Populate table with scan data
+        model = lib.tkintertable.TableModels.TableModel()
+        model.importDict(scan_data['data_dict_indexed'])
+        selection_color = '#CDE4F7'
+        self.widgets['data_table'] = lib.tkintertable.Tables.TableCanvas(self.widgets['data_frame'], model,
+                            cellwidth=60, thefont=('',10),rowheight=18, rowheaderwidth=50, 
+                            multipleselectioncolor=selection_color, rowselectedcolor=selection_color, selectedcolor=selection_color, editable=False)
+        self.widgets['data_table'].createTableFrame()
+        self.widgets['data_table'].select_All()
+        return
 
     def list_scan_headers(self, scan_num):
         scan_data = self.spec_scans[scan_num]
@@ -250,21 +264,20 @@ class Application(ttk.Frame):
     def debug_log(self, text):
         print text
 
+    def get_selected_data(self):
+        indices = self.widgets['data_table'].get_selectedRecordNames()
+        data = self.widgets['data_table'].getModel().data
+        selected_data = [data[k] for k in indices if k in data]
+        return selected_data
+
     def action_xes(self):
-        indices = self.widgets['data_tree'].selection()
-        selected_data = self.widgets['data_tree'].get_data(indices)
-        calib = self.widgets['calib_tree'].get_data()
-        self.plot_xes(selected_data)
+        self.plot_xes(self.get_selected_data())
 
     def action_rxes(self):
-        indices = self.widgets['data_tree'].selection()
-        selected_data = self.widgets['data_tree'].get_data(indices)
-        self.plot_rxes(selected_data)
+        self.plot_rxes(self.get_selected_data())
 
     def action_herfd(self):
-        indices = self.widgets['data_tree'].selection()
-        selected_data = self.widgets['data_tree'].get_data(indices)
-        self.plot_herfd(selected_data)
+        self.plot_herfd(self.get_selected_data())
 
     def plot_xes(self, data):
 

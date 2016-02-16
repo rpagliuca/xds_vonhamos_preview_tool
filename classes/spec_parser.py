@@ -29,6 +29,8 @@ class SpecParser:
         last_line = None
 
         with open(self.specfile) as fp:
+            # Motors names should be initialized before reading each line, because it is an ocasional header that is not guarenteed to exist, and, when it does, it is not attached to a specific scan
+            motors_names = []
             for line in fp:
 
                 # Lines starting with #S are beggining of scans (scan header)
@@ -41,6 +43,7 @@ class SpecParser:
                     motors_positions = []
                     columns_names = []
                     columns_values = []
+                    row_number = 0
                     exposure_time = None
                     scan_date = None
                     header = True
@@ -97,9 +100,11 @@ class SpecParser:
                             'exposure_time': exposure_time,
                             'date': scan_date,
                             'data_dict': list(),
+                            'data_dict_indexed': OrderedDict(),
                             'data_lines': list(),
                             'data_values': list()
                         }
+                        row_number = 0
                     last_line = 'DATA' 
                     # Following regex starts with '?:', which is a non-capturing regex group
                     matches = re.findall('(?:\s|^)([a-zA-Z0-9\._\+-]+)', line)
@@ -107,7 +112,9 @@ class SpecParser:
                         columns_values = matches
                         data_dict = OrderedDict(zip(columns_names, columns_values))
                         self.scans[scan_id]['data_dict'].append(data_dict)
+                        self.scans[scan_id]['data_dict_indexed'][row_number] = data_dict
                         self.scans[scan_id]['data_values'].append(columns_values)
                         self.scans[scan_id]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
+                        row_number += 1
                 else:
                     last_line = 'OTHER'

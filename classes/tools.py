@@ -3,7 +3,7 @@
 # Von Hamos Preview Tool for XDS Beamline
 # Author: Rafael Pagliuca <rafael.pagliuca@lnls.br>
 # Date created: 2015-12-02
-# Date modified: 2015-12-11
+# Modified: 2015-12-11
 
 import pandas
 import numpy as np
