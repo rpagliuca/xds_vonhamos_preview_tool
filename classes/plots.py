@@ -109,7 +109,7 @@ class PlotWindow(tk.Toplevel):
     def roi_axis(self):
         ' Used on plots which have ROI as x axis '
         p = self.parameters
-        rois_numbers = self.columns_names_parse_as_int(p['rois_names'])
+        rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
         if p['use_calibration'] and p['calibration_data']:
             self.axes.set_xlabel('Emitted energy (keV)')
             return self.rois_to_energies()
@@ -120,7 +120,7 @@ class PlotWindow(tk.Toplevel):
     def rois_to_energies(self):
         ' Used on plots which have ROI as x axis '
         p = self.parameters
-        rois_numbers = self.columns_names_parse_as_int(p['rois_names'])
+        rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
 
         # Fitting
         calib = Tools.dict_to_numpy(p['calibration_data']) 
@@ -207,10 +207,7 @@ class RXESPlot(PlotWindow):
     def plot(self):
         p = self.parameters
         # Generate colormap
-        counts = self.data[:, p['rois_columns']]
-        if p['i0_column']:
-            # Normalize
-            counts = np.divide(counts, self.data[:, p['i0_column']][:, np.newaxis])
+        counts = self.data[:, p['intensity_columns']]
         cs = self.axes.contourf(self.roi_axis(), self.data[:, p['energy_column']].tolist(), counts, 100, stride=1)
 
     def config_plot_custom(self):
@@ -238,13 +235,7 @@ class HERFDPlot(PlotWindow):
         p = self.parameters
         self.axes.clear()
 
-        # Divide by I0
-        if p['i0_column']:
-            i0_values = self.data[:, p['i0_column']][:, np.newaxis]
-        else:
-            i0_values = 1
-
-        normalized_data = np.divide(self.data[:, p['rois_columns']], self.normalization_value*i0_values) - self.base_value/self.normalization_value
+        normalized_data = np.divide(self.data[:, p['intensity_columns']], self.normalization_value) - self.base_value/self.normalization_value
         energies_data = np.repeat(self.data[:, p['energy_column']][:, np.newaxis], normalized_data.shape[1], axis=1)
         self.axes.plot(energies_data, normalized_data)
         self.plot_redraw()
@@ -253,13 +244,7 @@ class HERFDPlot(PlotWindow):
         p = self.parameters
         self.axes.clear()
 
-        # Divide by I0
-        if p['i0_column']:
-            i0_values = self.data[:, p['i0_column']][:, np.newaxis]
-        else:
-            i0_values = 1
-
-        normalized_data = np.sum(np.divide(self.data[:, p['rois_columns']], self.normalization_value*i0_values), axis=1) - self.base_value/self.normalization_value
+        normalized_data = np.sum(np.divide(self.data[:, p['intensity_columns']], self.normalization_value), axis=1) - self.base_value/self.normalization_value
 
         # Add plot line of the sum
         self.axes.plot(self.data[:, p['energy_column']], normalized_data)
@@ -305,13 +290,7 @@ class XESPlot(PlotWindow):
         rows, columns = self.data.shape
         roi_axis = self.roi_axis()
 
-        # Divide by I0
-        if p['i0_column']:
-            i0_values = self.data[:, p['i0_column']][:, np.newaxis]
-        else:
-            i0_values = 1
-
-        normalized_data = np.divide(self.data[:, min(p['rois_columns']):max(p['rois_columns'])+1], i0_values*self.normalization_value) - self.base_value/self.normalization_value
+        normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
         rois_data = np.repeat(np.asarray(roi_axis)[:, np.newaxis], normalized_data.shape[0], axis=1)
         self.axes.plot(rois_data, np.transpose(normalized_data))
         self.plot_redraw()
@@ -324,13 +303,7 @@ class XESPlot(PlotWindow):
         rows, columns = self.data.shape
         roi_axis = self.roi_axis()
 
-        # Divide by I0
-        if p['i0_column']:
-            i0_values = self.data[0:rows, p['i0_column']][:, np.newaxis]
-        else:
-            i0_values = 1
-
-        normalized_data = np.sum(np.divide(self.data[0:rows, min(p['rois_columns']):max(p['rois_columns'])+1], i0_values*self.normalization_value), axis=0) - self.base_value/self.normalization_value
+        normalized_data = np.sum(np.divide(self.data[0:rows, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value), axis=0) - self.base_value/self.normalization_value
         # Add plot line
         self.axes.plot(roi_axis, normalized_data)
         self.plot_redraw()

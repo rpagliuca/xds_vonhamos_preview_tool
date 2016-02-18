@@ -57,59 +57,90 @@ class Application(ttk.Frame):
         self.widgets = dict()
 
         # Button Open
+        row = 0 # Helper for grid layout
+        rowspan = 1
         self.widgets['btn_open'] = ttk.Button(self)
         self.widgets['btn_open']["text"] = "Open SPEC file"
         self.widgets['btn_open']["command"] = self.action_select_file
-        self.widgets['btn_open'].grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        self.widgets['btn_open'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Pilatus Columns
-        self.widgets['entry_pilatus_columns'] = LabeledEntry(self, 'Signal Cols.: ', 'pl0-pl486')
-        self.widgets['entry_pilatus_columns'].grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_pilatus_signal_columns'] = LabeledEntry(self, 'Signal (S): ', 'pl0-pl486')
+        self.widgets['entry_pilatus_signal_columns'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Background1 Columns
-        self.widgets['entry_pilatus_bg1_columns'] = LabeledEntry(self, 'Background 1 Cols.: ', 'pl487-pl973')
-        self.widgets['entry_pilatus_bg1_columns'].grid(row=2, column=0, sticky="nsew", pady=(0, 10))
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_pilatus_bg1_columns'] = LabeledEntry(self, 'Background 1 (BG1): ', 'pl487-pl973')
+        self.widgets['entry_pilatus_bg1_columns'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
-        ## Entry Background2 Columns
-        self.widgets['entry_pilatus_bg2_columns'] = LabeledEntry(self, 'Background 2 Cols.: ', 'pl974-pl1460')
-        self.widgets['entry_pilatus_bg2_columns'].grid(row=3, column=0, sticky="nsew", pady=(0, 10))
-
-        # Entry Energy Column
-        self.widgets['entry_energy_column'] = LabeledEntry(self, 'Energy Col.: ', 'dcm_energy')
-        self.widgets['entry_energy_column'].grid(row=4, column=0, sticky="nsew", pady=(0, 10))
+        # Entry Background2 Columns
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_pilatus_bg2_columns'] = LabeledEntry(self, 'Background 2 (BG2): ', 'pl974-pl1460')
+        self.widgets['entry_pilatus_bg2_columns'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Denominator (I0) Column
-        self.widgets['entry_i0_column'] = LabeledEntry(self, 'I0 Col.: ', 'I0')
-        self.widgets['entry_i0_column'].grid(row=5, column=0, sticky="nsew", pady=(0, 10))
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_i0_column'] = LabeledEntry(self, 'Monitor (I0): ', 'I0')
+        self.widgets['entry_i0_column'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
+
+        # Entry Energy Column
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_energy_column'] = LabeledEntry(self, 'Incoming energy: ', 'energy')
+        self.widgets['entry_energy_column'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
+
+        ## Intensity Formula
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_pilatus_equation'] = LabeledEntry(self, 'Intensity formula: ', '(S-(BG1+BG2)/2)/I0')
+        self.widgets['entry_pilatus_equation'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         # Button XES
+        row += rowspan
+        rowspan = 1
         self.widgets['btn_xes'] = ttk.Button(self)
         self.widgets['btn_xes']["text"] = "XES"
         self.widgets['btn_xes']["command"] = self.action_xes
-        self.widgets['btn_xes'].grid(row=6, column=0, sticky="nsew", pady=(0, 2))
+        self.widgets['btn_xes'].grid(row=row, column=0, sticky="nsew", pady=(0, 2))
 
         # Button HERFD
+        row += rowspan
+        rowspan = 1
         self.widgets['btn_herfd'] = ttk.Button(self)
         self.widgets['btn_herfd']["text"] = "HERFD"
         self.widgets['btn_herfd']["command"] = self.action_herfd
-        self.widgets['btn_herfd'].grid(row=7, column=0, sticky="nsew", pady=(0, 2))
+        self.widgets['btn_herfd'].grid(row=row, column=0, sticky="nsew", pady=(0, 2))
 
         # Button RXES
+        row += rowspan
+        rowspan = 1
         self.widgets['btn_rxes'] = ttk.Button(self)
         self.widgets['btn_rxes']["text"] = "RXES"
         self.widgets['btn_rxes']["command"] = self.action_rxes
-        self.widgets['btn_rxes'].grid(row=8, column=0, sticky="nsew", pady=(0, 2))
+        self.widgets['btn_rxes'].grid(row=row, column=0, sticky="nsew", pady=(0, 2))
 
         # Scans listbox
+        row += rowspan
+        rowspan = 3
+        row_expandable = row # Store number of expandable row
         self.widgets['scans_listbox'] = ScrollableListbox(self)
-        self.widgets['scans_listbox'].grid(row=9, column=0, rowspan=3, sticky="nsew")
+        self.widgets['scans_listbox'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew")
         self.widgets['scans_listbox'].bind('<<ListboxSelect>>', self.action_scans_listbox_select)
 
         # Calibration Label
+        row += rowspan
+        rowspan = 1
         self.widgets['cb_calib'] = Checkbox(self, text='Use calibration')
-        self.widgets['cb_calib'].grid(row=12, column=0, rowspan=1, sticky="nsew", pady=(10, 0))
+        self.widgets['cb_calib'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew", pady=(10, 0))
 
         # Calibration listbox
+        row += rowspan
+        rowspan = 1
         self.widgets['calib_tree'] = ScrollableTreeview(self, height=4)
         col_names = ['ROI', 'Energy']
         self.widgets['calib_tree']['columns'] = col_names
@@ -118,17 +149,33 @@ class Application(ttk.Frame):
             self.widgets['calib_tree'].column(col_name, width=20)
         # Hide first empty column
         self.widgets['calib_tree']['show']= 'headings'
-        self.widgets['calib_tree'].grid(row=13, column=0, sticky="nsew")
+        self.widgets['calib_tree'].grid(row=row, column=0, sticky="nsew")
 
         # Data points listbox
+        row = 0 # New column
+        rowspan = row_expandable+1
         self.widgets['data_frame'] = ttk.Frame(self)
-        self.widgets['data_frame'].grid(row=0, column=1, rowspan=10, sticky="nsew", padx=(10, 0))
+        self.widgets['data_frame'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", padx=(10, 0))
+
+        # Empty initial data table (for cosmetics, only)
+        model = lib.tkintertable.TableModels.TableModel()
+        model.importDict({'0': {'': ''}})
+        selection_color = '#CDE4F7'
+        self.widgets['data_table'] = lib.tkintertable.Tables.TableCanvas(self.widgets['data_frame'], model,
+                            cellwidth=60, thefont=('',10),rowheight=18, rowheaderwidth=50, 
+                            multipleselectioncolor=selection_color, rowselectedcolor=selection_color, selectedcolor=selection_color, editable=False)
+        self.widgets['data_table'].createTableFrame()
+        self.widgets['data_table'].select_All()
 
         # Headers label
+        row += rowspan
+        rowspan = 1
         self.widgets['label_headers'] = ttk.Label(self, text='Scan header:')
-        self.widgets['label_headers'].grid(row=10, column=1, rowspan=1, sticky="nsew", pady=(10, 0), padx=(10, 0))
+        self.widgets['label_headers'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
 
         # Headers listbox
+        row += rowspan
+        rowspan = 1
         self.widgets['tree_headers'] = ScrollableTreeview(self, height=4)
         col_names = ['Motor', 'Position']
         self.widgets['tree_headers']['columns'] = col_names
@@ -137,21 +184,25 @@ class Application(ttk.Frame):
             self.widgets['tree_headers'].column(col_name, width=20)
         # Hide first empty column
         self.widgets['tree_headers']['show']= 'headings'
-        self.widgets['tree_headers'].grid(row=11, column=1, sticky="nsew", padx=(10, 0))
+        self.widgets['tree_headers'].grid(row=row, column=1, sticky="nsew", padx=(10, 0))
 
         # Log Label
+        row += rowspan
+        rowspan = 1
         self.widgets['log_label'] = ttk.Label(self, text='Log:')
-        self.widgets['log_label'].grid(row=12, column=1, rowspan=1, sticky="nsew", pady=(10, 0), padx=(10, 0))
+        self.widgets['log_label'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
 
         # Log listbox
+        row += rowspan
+        rowspan = 1
         self.widgets['log_listbox'] = ScrollableListbox(self, height=4)
-        self.widgets['log_listbox'].grid(row=13, column=1, sticky="nsew", padx=(10, 0))
+        self.widgets['log_listbox'].grid(row=row, column=1, sticky="nsew", padx=(10, 0))
 
         # Do not resize buttons column
         tk.Grid.columnconfigure(self, 0, weight=0)
         tk.Grid.rowconfigure(self, 0, weight=0)
         tk.Grid.columnconfigure(self, 1, weight=1)
-        tk.Grid.rowconfigure(self, 9, weight=1)
+        tk.Grid.rowconfigure(self, row_expandable, weight=1)
 
     def set_window_icon(self, window=None):
         # Set the icon for the graphical window
@@ -265,10 +316,68 @@ class Application(ttk.Frame):
         print text
 
     def get_selected_data(self):
+
         indices = self.widgets['data_table'].get_selectedRecordNames()
         data = self.widgets['data_table'].getModel().data
-        selected_data = [data[k] for k in indices if k in data]
+        p = self.get_plot_parameters_and_validate(data)
+        error = False
+
+        fields = {  'S': 'rois_signal_columns',
+                    'BG1': 'rois_bg1_columns',
+                    'BG2': 'rois_bg2_columns',
+                    'I0': 'i0_column'
+                 }
+
+        for key in fields:
+            # Fields with False or [] contents should throw errors if on formula
+            if (self.formula_contains_variable(key)
+               and ((isinstance(p[fields[key]], (bool)) and not p[fields[key]])
+               or (not isinstance(p[fields[key]], (bool)) and len(p[fields[key]]) == 0))):
+                error = '* Error: Formula contains ' + key + ', but no column matched the user-defined filter'
+
+        if (self.formula_contains_variable('S') and self.formula_contains_variable('BG1') and len(p['rois_signal_columns']) != len(p['rois_bg1_columns'])):
+            error = '* Error: Formula contains both S and BG1, but the number of columns differ'
+            
+        if (self.formula_contains_variable('S') and self.formula_contains_variable('BG2') and len(p['rois_signal_columns']) != len(p['rois_bg2_columns'])):
+            error = '* Error: Formula contains both S and BG2, but the number of columns differ'
+
+        if (self.formula_contains_variable('BG1') and self.formula_contains_variable('BG2') and len(p['rois_bg1_columns']) != len(p['rois_bg2_columns'])):
+            error = '* Error: Formula contains both BG1 and BG2, but the number of columns differ'
+
+        if error:
+            self.log(error)
+            raise ValueError(error)
+
+        selected_data = list()
+        for row in indices:
+            if row in data:
+                col_num = 1
+                for signal_column, bg1_column, bg2_column in zip(p['rois_signal_names'], p['rois_bg1_names'], p['rois_bg2_names']):
+                    formula = p['rois_formula'] 
+                    # Replace variables on Intensity Formula by actual values
+                    if self.formula_contains_variable('S'):
+                        formula = formula.replace('S', data[row][signal_column])
+                    if self.formula_contains_variable('BG1'):
+                        formula = formula.replace('BG1', data[row][bg1_column])
+                    if self.formula_contains_variable('BG2'):
+                        formula = formula.replace('BG2', data[row][bg2_column])
+                    if self.formula_contains_variable('I0'):
+                        formula = formula.replace('I0', data[row][p['i0_name']])
+                    intensity = eval(formula) 
+                    # Store calculated intensities on columns intensity_0, intensity_1 etc
+                    data[row].update({'__intensity_' + str(col_num): intensity})
+                    col_num += 1 
+                selected_data.append(data[row])
         return selected_data
+
+    def formula_contains_variable(self, variable):
+        rois_formula = self.widgets['entry_pilatus_equation'].stringvar.get()
+        # A white space is preppended to the formula to simplify the regex
+        formula = ' ' + rois_formula + ' '
+        if re.search('[^a-zA-Z0-9]' + re.escape(variable) + '[^a-zA-Z0-9]', formula) is not None:
+            return True
+        else:
+            return False
 
     def action_xes(self):
         self.plot_xes(self.get_selected_data())
@@ -324,21 +433,31 @@ class Application(ttk.Frame):
         return parameters
 
     def validate_plot_parameters(self, parameters):
-        if len(parameters['rois_columns']) == 0:
+        if len(parameters['rois_signal_columns']) == 0:
             self.log('* No ROI column was selected')
-        elif len(parameters['rois_columns']) >= 1:
-            self.log('* Number of ROI columns: ' + str(len(parameters['rois_columns'])))
+        elif len(parameters['rois_signal_columns']) >= 1:
+            self.log('* Number of ROI columns: ' + str(len(parameters['rois_signal_columns'])))
         if isinstance(parameters['energy_column'], (bool)) and not parameters['energy_column']:
             self.log('* No energy column was selected')
-        if isinstance(parameters['i0_column'], (bool)) and not parameters['i0_column']:
-            self.log('* No I0 column was selected')
+        #if isinstance(parameters['i0_column'], (bool)) and not parameters['i0_column']:
+        #    self.log('* No I0 column was selected')
         if parameters['use_calibration']:
             self.log('* Using energy calibration')
 
     def get_plot_parameters(self, data):
+    
+        rois_signal_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_signal_columns'].stringvar.get())
+        rois_signal_names = np.asarray(data[0].keys())[rois_signal_columns]
 
-        rois_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_columns'].stringvar.get())
-        rois_names = np.asarray(data[0].keys())[rois_columns]
+        rois_bg1_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_bg1_columns'].stringvar.get())
+        rois_bg1_names = np.asarray(data[0].keys())[rois_bg1_columns]
+
+        rois_bg2_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_bg2_columns'].stringvar.get())
+        rois_bg2_names = np.asarray(data[0].keys())[rois_bg2_columns]
+
+        # This is automatically populated elsewhere according to Intensity Formula
+        intensity_columns = self.get_columns_indices(data[0].keys(), '__intensity_*')
+        intensity_names = np.asarray(data[0].keys())[intensity_columns]
 
         energy_column_list = self.get_columns_indices(data[0].keys(), self.widgets['entry_energy_column'].stringvar.get())
         if energy_column_list:
@@ -349,19 +468,30 @@ class Application(ttk.Frame):
         i0_column_list = self.get_columns_indices(data[0].keys(), self.widgets['entry_i0_column'].stringvar.get())
         if i0_column_list:
             i0_column = i0_column_list[0]
+            i0_name = np.asarray(data[0].keys())[i0_column]
         else:
             i0_column = False
+            i0_name = ''
 
+        rois_formula = self.widgets['entry_pilatus_equation'].stringvar.get()
         use_calibration = self.widgets['cb_calib'].var.get()
         calibration_data = self.widgets['calib_tree'].get_data()
 
         parameters = {
-            'rois_columns': rois_columns,
+            'rois_signal_columns': rois_signal_columns,
+            'rois_bg1_columns': rois_bg1_columns,
+            'rois_bg2_columns': rois_bg2_columns,
             'energy_column': energy_column,
             'i0_column': i0_column,
-            'rois_names': rois_names,
+            'i0_name': i0_name,
+            'rois_signal_names': rois_signal_names,
+            'rois_bg1_names': rois_bg1_names,
+            'rois_bg2_names': rois_bg2_names,
+            'rois_formula': rois_formula,
             'use_calibration': use_calibration,
-            'calibration_data': calibration_data
+            'calibration_data': calibration_data,
+            'intensity_columns': intensity_columns,
+            'intensity_names': intensity_names
         }
         return parameters
     
