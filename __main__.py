@@ -39,6 +39,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import ConfigParser
 import random, string
+import itertools
 # Custom classes
 from classes.spec_parser import *
 from classes.custom_widgets import *
@@ -332,7 +333,7 @@ class Application(ttk.Frame):
             # Fields with False or [] contents should throw errors if on formula
             if (self.formula_contains_variable(key)
                and ((isinstance(p[fields[key]], (bool)) and not p[fields[key]])
-               or (not isinstance(p[fields[key]], (bool)) and len(p[fields[key]]) == 0))):
+               or (not isinstance(p[fields[key]], (bool, int)) and len(p[fields[key]]) == 0))):
                 error = '* Error: Formula contains ' + key + ', but no column matched the user-defined filter'
 
         if (self.formula_contains_variable('S') and self.formula_contains_variable('BG1') and len(p['rois_signal_columns']) != len(p['rois_bg1_columns'])):
@@ -352,7 +353,7 @@ class Application(ttk.Frame):
         for row in indices:
             if row in data:
                 col_num = 1
-                for signal_column, bg1_column, bg2_column in zip(p['rois_signal_names'], p['rois_bg1_names'], p['rois_bg2_names']):
+                for signal_column, bg1_column, bg2_column in itertools.izip_longest(p['rois_signal_names'], p['rois_bg1_names'], p['rois_bg2_names']):
                     formula = p['rois_formula'] 
                     # Replace variables on Intensity Formula by actual values
                     if self.formula_contains_variable('S'):
