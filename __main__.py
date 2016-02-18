@@ -40,6 +40,7 @@ import numpy as np
 import ConfigParser
 import random, string
 import itertools
+import copy
 # Custom classes
 from classes.spec_parser import *
 from classes.custom_widgets import *
@@ -319,7 +320,7 @@ class Application(ttk.Frame):
     def get_selected_data(self):
 
         indices = self.widgets['data_table'].get_selectedRecordNames()
-        data = self.widgets['data_table'].getModel().data
+        data = copy.deepcopy(self.widgets['data_table'].getModel().data)
         p = self.get_plot_parameters_and_validate(data)
         error = False
 
@@ -350,10 +351,26 @@ class Application(ttk.Frame):
             raise ValueError(error)
 
         selected_data = list()
+        
+        rois_signal_names = []
+        rois_bg1_names = []
+        rois_bg2_names = []
+
+        if self.formula_contains_variable('S'):
+            rois_signal_names = p['rois_signal_names']
+
+        if self.formula_contains_variable('BG1'):
+            rois_bg1_names = p['rois_bg1_names']
+        
+        if self.formula_contains_variable('BG2'):
+            rois_bg2_names = p['rois_bg2_names']
+
+        rois_names = itertools.izip_longest(rois_signal_names, rois_bg1_names, rois_bg2_names)
+
         for row in indices:
             if row in data:
                 col_num = 1
-                for signal_column, bg1_column, bg2_column in itertools.izip_longest(p['rois_signal_names'], p['rois_bg1_names'], p['rois_bg2_names']):
+                for signal_column, bg1_column, bg2_column in rois_names:
                     formula = p['rois_formula'] 
                     # Replace variables on Intensity Formula by actual values
                     if self.formula_contains_variable('S'):
