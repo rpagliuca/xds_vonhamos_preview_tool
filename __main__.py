@@ -365,11 +365,11 @@ class Application(ttk.Frame):
         if self.formula_contains_variable('BG2'):
             rois_bg2_names = p['rois_bg2_names']
 
-        rois_names = itertools.izip_longest(rois_signal_names, rois_bg1_names, rois_bg2_names)
 
         for row in indices:
             if row in data:
                 col_num = 1
+                rois_names = itertools.izip_longest(rois_signal_names, rois_bg1_names, rois_bg2_names)
                 for signal_column, bg1_column, bg2_column in rois_names:
                     formula = p['rois_formula'] 
                     # Replace variables on Intensity Formula by actual values
