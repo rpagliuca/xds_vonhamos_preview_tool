@@ -3,7 +3,8 @@
 # Von Hamos Preview Tool for XDS Beamline
 # Author: Rafael Pagliuca <rafael.pagliuca@lnls.br>
 # Date created: 2015-12-02
-# Date modified: 2015-12-11
+# Modified 2015-12-11
+# Modified 2016-02-24: Added padding to checkbox label
 
 import Tkinter as tk
 import ttk
@@ -218,11 +219,12 @@ class LabeledEntry(ttk.Frame):
 
 class Checkbox(tk.Checkbutton):
 
-    def __init__(self, master=None, *args, **kwargs):
+    def __init__(self, master=None, text='', *args, **kwargs):
         self.master = master
         self.var = tk.IntVar()
         self.click_actions = list()
-        tk.Checkbutton.__init__(self, master=self.master, var=self.var, command=self.action_change, *args, **kwargs)
+        text = ' ' + text # Add padding to label text
+        tk.Checkbutton.__init__(self, master=self.master, var=self.var, command=self.action_change, text=text, *args, **kwargs)
 
     def add_click_action(self, function):
         self.click_actions.append(function)

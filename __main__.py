@@ -6,6 +6,8 @@
 
 # ===== DONE =====
 
+# Modified: 2016-02-24
+
 # Modified: 2016-02-15
 # * Replaced Treeview for tkintertable for displaying of scan data
 
@@ -99,8 +101,8 @@ class Application(ttk.Frame):
         ## Intensity Formula
         row += rowspan
         rowspan = 1
-        self.widgets['entry_pilatus_equation'] = LabeledEntry(self, 'Intensity formula: ', '(S-(BG1+BG2)/2)/I0')
-        self.widgets['entry_pilatus_equation'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
+        self.widgets['entry_pilatus_formula'] = LabeledEntry(self, 'Intensity formula: ', '(S-(BG1+BG2)/2)/I0')
+        self.widgets['entry_pilatus_formula'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         # Button XES
         row += rowspan
@@ -236,6 +238,14 @@ class Application(ttk.Frame):
         self.file_path = ''
         self.filename = ''
 
+        self.configs = { 's': 'entry_pilatus_signal_columns',
+                    'bg1': 'entry_pilatus_bg1_columns',
+                    'bg2': 'entry_pilatus_bg2_columns',
+                    'i0': 'entry_i0_column',
+                    'energy': 'entry_energy_column',
+                    'formula': 'entry_pilatus_formula'
+                  }
+
     def maximize_window(self):
         w, h = self.master.winfo_screenwidth(), self.master.winfo_screenheight()
         self.master.geometry("%dx%d+0+0" % (w, h))
@@ -301,9 +311,39 @@ class Application(ttk.Frame):
     def action_select_file(self):
         file_path = fd.askopenfilename(initialdir=self.default_open_dir)
         if file_path:
+            file_path = file_path.replace('_xds-vhpt.ini', '') # Open data file even when clicking on project config file
             self.file_path = file_path
             self.store_default_open_dir(self.file_path)
             self.filename = os.path.basename(self.file_path)
+
+            # Try to load file custom config
+            self.file_config_ini = ConfigParser.ConfigParser()
+            self.file_config_ini_file = self.file_path + '_xds-vhpt.ini'
+
+            try:
+                self.file_config_ini.read(self.file_config_ini_file)
+            except:
+                self.debug_log('Error reading ' + self.file_config_ini_file)
+
+            for config in self.configs:
+                try:
+                    self.widgets[self.configs[config]].stringvar.set(self.file_config_ini.get('project', config))
+                except:
+                    self.debug_log('Ignoring config "' + config + '"')
+
+            try:
+                w = self.widgets['calib_tree']
+                calib_list = self.file_config_ini.get('project', 'Calibration').split(';') 
+                if calib_list: # If there is a calib_list string, clear old calibration data
+                   w.clear() 
+                for calib_pair in calib_list:
+                    pair = calib_pair.split(',')
+                    item_id = w.append(["%.1f" % float(pair[0]), "%.4f" % float(pair[1])], {'roi': float(pair[0]), 'energy': float(pair[1])})
+                    w.see(item_id)
+                    self.widgets['cb_calib'].var.set(True)
+            except:
+                self.debug_log('Error reading config "Calibration"')
+                
             self.log('======== OPEN =========')
             self.log('* Loaded path ' + self.file_path)
             self.log('* File: ' + self.filename)
@@ -389,7 +429,7 @@ class Application(ttk.Frame):
         return selected_data
 
     def formula_contains_variable(self, variable):
-        rois_formula = self.widgets['entry_pilatus_equation'].stringvar.get()
+        rois_formula = self.widgets['entry_pilatus_formula'].stringvar.get()
         # A white space is preppended to the formula to simplify the regex
         formula = ' ' + rois_formula + ' '
         if re.search('[^a-zA-Z0-9]' + re.escape(variable) + '[^a-zA-Z0-9]', formula) is not None:
@@ -397,13 +437,36 @@ class Application(ttk.Frame):
         else:
             return False
 
+    def save_project_config(self):
+        if not self.file_config_ini.has_section('project'):
+            self.file_config_ini.add_section('project')
+
+        for config in self.configs:
+            self.file_config_ini.set('project', config, self.widgets[self.configs[config]].stringvar.get())
+
+        calibration_data = self.widgets['calib_tree'].get_data()
+        calib_string = ''
+        for calib_pair in calibration_data:
+            calib_string += str(calib_pair['roi']) + ',' + str(calib_pair['energy']) + ';'
+        calib_string = calib_string[0:-1]
+        self.file_config_ini.set('project', 'calibration', calib_string)
+            
+        try:
+            with open(self.file_config_ini_file, 'w') as configfile:
+                self.file_config_ini.write(configfile)
+        except:
+            self.debug_log('Error writing ' + self.file_config_ini_file)
+
     def action_xes(self):
+        self.save_project_config()
         self.plot_xes(self.get_selected_data())
 
     def action_rxes(self):
+        self.save_project_config()
         self.plot_rxes(self.get_selected_data())
 
     def action_herfd(self):
+        self.save_project_config()
         self.plot_herfd(self.get_selected_data())
 
     def plot_xes(self, data):
@@ -491,7 +554,7 @@ class Application(ttk.Frame):
             i0_column = False
             i0_name = ''
 
-        rois_formula = self.widgets['entry_pilatus_equation'].stringvar.get()
+        rois_formula = self.widgets['entry_pilatus_formula'].stringvar.get()
         use_calibration = self.widgets['cb_calib'].var.get()
         calibration_data = self.widgets['calib_tree'].get_data()
 
