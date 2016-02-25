@@ -630,8 +630,6 @@ class Application(ttk.Frame):
 
 # Init TK Master
 root = tk.Tk()
-s = ttk.Style()
-s.theme_use('default')
 root.geometry("1000x700+30+30") # width x height + padding_x + padding_y
 
 # Init Application
