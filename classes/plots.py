@@ -53,6 +53,9 @@ class PlotWindow(tk.Toplevel):
         self.config_plot()
         self.add_default_widgets()
 
+        # This functions loops every 10 seconds
+        self.after(0, self.timer())
+
     def add_profiles_and_colorbar(self):
 
         # Right axes sharing Y axis
@@ -80,6 +83,10 @@ class PlotWindow(tk.Toplevel):
         self.widgets['btn_export']["command"] = self.action_btn_export
         self.widgets['btn_export'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Sum plots checkbox
+        self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['frame'], text='Auto refresh')
+        self.widgets['cb_auto_refresh'].pack(side=tk.LEFT, padx=10, pady=10)
+
     def default_config(self):
         self.main_axes.get_xaxis().get_major_formatter().set_useOffset(False)
         self.main_axes.get_yaxis().get_major_formatter().set_useOffset(False)
@@ -93,6 +100,19 @@ class PlotWindow(tk.Toplevel):
                 line_num += 1
                 path = file_path + '_' + self.plot_type + '_' + str(line_num) + '.txt'
                 np.savetxt(path, np.column_stack([line.get_xdata(), line.get_ydata()]))
+
+    def action_cb_transferred_click(self, *args, **kwargs):
+        self.refresh_plot()
+
+    # This functions loops every 10 seconds
+    def timer(self):
+        auto_refresh = self.widgets['cb_auto_refresh'].var.get()
+        if auto_refresh:
+            self.application.update_current_selected_data()
+            self.data = self.application.current_selected_data
+            self.parameters = self.application.current_parameters
+            self.refresh_plot()
+        self.after(10000, self.timer)
 
     def show(self):
         # Show plot
@@ -329,9 +349,6 @@ class RXESPlot(PlotWindow):
         self.right_axes.get_xaxis().set_major_locator(matplotlib.ticker.FixedLocator([0, 0.5, 1]))
         plt.setp(self.right_axes.get_yticklabels(), visible=False)
         self.bottom_axes.get_yaxis().set_major_locator(matplotlib.ticker.FixedLocator([0, 0.5, 1]))
-
-    def action_cb_transferred_click(self, *args, **kwargs):
-        self.refresh_plot()
 
     def refresh_plot(self):
         self.main_axes.clear()

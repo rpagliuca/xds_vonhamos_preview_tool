@@ -63,10 +63,21 @@ class Application(ttk.Frame):
         # Button Open
         row = 0 # Helper for grid layout
         rowspan = 1
-        self.widgets['btn_open'] = ttk.Button(self)
+
+        # Subframe
+        self.widgets['open_file_frame'] = ttk.Frame(self)
+
+        self.widgets['btn_open'] = ttk.Button(self.widgets['open_file_frame'])
         self.widgets['btn_open']["text"] = "Open SPEC file"
         self.widgets['btn_open']["command"] = self.action_select_file
-        self.widgets['btn_open'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
+        self.widgets['btn_open'].grid(row=row, column=0, sticky="nsew", pady=(0, 0))
+
+        self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['open_file_frame'], text='Auto refresh')
+        self.widgets['cb_auto_refresh'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(0, 0))
+
+        tk.Grid.columnconfigure(self.widgets['open_file_frame'], 0, weight=1)
+        tk.Grid.rowconfigure(self.widgets['open_file_frame'], 0, weight=1)
+        self.widgets['open_file_frame'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         # Entry Pilatus Columns
         row += rowspan
@@ -250,13 +261,23 @@ class Application(ttk.Frame):
         w, h = self.master.winfo_screenwidth(), self.master.winfo_screenheight()
         self.master.geometry("%dx%d+0+0" % (w, h))
 
-    def load_spec_file(self):
+    def load_spec_file(self, refresh = False):
+
+        # Quit if file path does not exist
+        if not self.file_path:
+            return
+
         self.widgets['scans_listbox'].clear()
         specfile = SpecParser(self.file_path)
         self.spec_scans = specfile.get_scans()
+
         for scan_id, scan_data in self.spec_scans.iteritems():
             self.widgets['scans_listbox'].append(scan_data['command'], scan_data['id'])
-        self.load_first_scan()
+
+        if refresh:
+            self.list_scan_data(self.current_scan) # For auto refresh mode
+        else:
+            self.load_first_scan() # For regular file opening
     
     def load_first_scan(self):
         self.widgets['scans_listbox'].select_first()
@@ -266,7 +287,9 @@ class Application(ttk.Frame):
         scan_data = self.spec_scans[scan_num]
         self.list_scan_headers(scan_num)
         # Populate table with scan data
-        model = lib.tkintertable.TableModels.TableModel()
+        self.current_scan = scan_num
+        self.scan_data_model = lib.tkintertable.TableModels.TableModel()
+        model = self.scan_data_model
         model.importDict(scan_data['data_dict_indexed'])
         selection_color = '#CDE4F7'
         self.widgets['data_table'] = lib.tkintertable.Tables.TableCanvas(self.widgets['data_frame'], model,
@@ -310,7 +333,12 @@ class Application(ttk.Frame):
 
     def action_select_file(self):
         file_path = fd.askopenfilename(initialdir=self.default_open_dir)
+        self.open_file(file_path)
+
+    def open_file(self, file_path):
+
         if file_path:
+
             file_path = file_path.replace('_xds-vhpt.ini', '') # Open data file even when clicking on project config file
             self.file_path = file_path
             self.store_default_open_dir(self.file_path)
@@ -495,6 +523,15 @@ class Application(ttk.Frame):
         parameters = self.get_plot_parameters_and_validate(data)
         plot = HERFDPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
 
+    def update_current_selected_data(self):
+        # Prepare data
+        data = self.get_selected_data()
+        nparray = Tools.dict_to_numpy(data)
+        # Create new plot window
+        parameters = self.get_plot_parameters_and_validate(data)
+        self.current_selected_data = nparray 
+        self.current_parameters = parameters
+
     def plot_rxes(self, data):
 
         self.log('======== RXES =========')
@@ -503,9 +540,9 @@ class Application(ttk.Frame):
 
         # Prepare data
         nparray = Tools.dict_to_numpy(data)
+        parameters = self.get_plot_parameters_and_validate(data)
 
         # Create new plot window
-        parameters = self.get_plot_parameters_and_validate(data)
         plot = RXESPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
 
     def get_plot_parameters_and_validate(self, data):
@@ -628,10 +665,18 @@ class Application(ttk.Frame):
             index += 1
         return return_list
 
+    # This functions loops every 10 seconds
+    def timer(self):
+        auto_refresh = self.widgets['cb_auto_refresh'].var.get()
+        if auto_refresh:
+            self.load_spec_file(refresh=True)
+        self.after(10000, self.timer)
+
 # Init TK Master
 root = tk.Tk()
 root.geometry("1000x700+30+30") # width x height + padding_x + padding_y
 
 # Init Application
 app = Application(master=root)
+app.after(0, app.timer)
 app.mainloop()
