@@ -312,7 +312,7 @@ class Application(ttk.Frame):
 
     def load_config_ini(self):
         self.config_ini = ConfigParser.ConfigParser()
-        self.config_ini_file = os.path.join(self.root_dir, 'settings.ini')
+        self.config_ini_file = os.path.join(os.path.expanduser('~'), 'xds-vonhamos-preview-tool-settings.ini')
         try:
             self.config_ini.read(self.config_ini_file)
             self.default_open_dir = self.config_ini.get('global', 'default_open_dir') 
