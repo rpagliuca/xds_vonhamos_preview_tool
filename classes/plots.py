@@ -143,6 +143,7 @@ class PlotWindow(tk.Toplevel):
 
     def action_close(self):
         # Custom code when closing plot window
+        plt.close(self.fig) 
         self.destroy()
 
     def roi_axis(self):

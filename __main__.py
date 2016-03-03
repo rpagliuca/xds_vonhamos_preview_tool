@@ -172,11 +172,11 @@ class Application(ttk.Frame):
         self.widgets['data_frame'] = ttk.Frame(self)
         self.widgets['data_frame'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", padx=(10, 0))
 
-        # Empty initial data table (for cosmetics, only)
-        model = lib.tkintertable.TableModels.TableModel()
-        model.importDict({'0': {'': ''}})
+        # Empty initial data table
+        self.scan_data_model = lib.tkintertable.TableModels.TableModel()
+        self.scan_data_model.importDict({'0': {'': ''}})
         selection_color = '#CDE4F7'
-        self.widgets['data_table'] = lib.tkintertable.Tables.TableCanvas(self.widgets['data_frame'], model,
+        self.widgets['data_table'] = lib.tkintertable.Tables.TableCanvas(self.widgets['data_frame'], self.scan_data_model,
                             cellwidth=60, thefont=('',10),rowheight=18, rowheaderwidth=50, 
                             multipleselectioncolor=selection_color, rowselectedcolor=selection_color, selectedcolor=selection_color, editable=False)
         self.widgets['data_table'].createTableFrame()
@@ -268,8 +268,8 @@ class Application(ttk.Frame):
             return
 
         self.widgets['scans_listbox'].clear()
-        specfile = SpecParser(self.file_path)
-        self.spec_scans = specfile.get_scans()
+        self.specfile = SpecParser(self.file_path)
+        self.spec_scans = self.specfile.get_scans()
 
         for scan_id, scan_data in self.spec_scans.iteritems():
             self.widgets['scans_listbox'].append(scan_data['command'], scan_data['id'])
@@ -284,25 +284,19 @@ class Application(ttk.Frame):
         self.action_scans_listbox_select()
 
     def list_scan_data(self, scan_num):
-        scan_data = self.spec_scans[scan_num]
         self.list_scan_headers(scan_num)
         # Populate table with scan data
         self.current_scan = scan_num
         self.scan_data_model = lib.tkintertable.TableModels.TableModel()
-        model = self.scan_data_model
-        model.importDict(scan_data['data_dict_indexed'])
-        selection_color = '#CDE4F7'
-        self.widgets['data_table'] = lib.tkintertable.Tables.TableCanvas(self.widgets['data_frame'], model,
-                            cellwidth=60, thefont=('',10),rowheight=18, rowheaderwidth=50, 
-                            multipleselectioncolor=selection_color, rowselectedcolor=selection_color, selectedcolor=selection_color, editable=False)
+        self.scan_data_model.importDict(self.spec_scans[scan_num]['data_dict_indexed'])
+        self.widgets['data_table'].setModel(self.scan_data_model)
         self.widgets['data_table'].createTableFrame()
         self.widgets['data_table'].select_All()
         return
 
     def list_scan_headers(self, scan_num):
-        scan_data = self.spec_scans[scan_num]
         self.widgets['tree_headers'].clear()
-        for key, value in OrderedDict(sorted(zip(scan_data['motors_names'], scan_data['motors_positions']))).iteritems():
+        for key, value in OrderedDict(sorted(zip(self.spec_scans[scan_num]['motors_names'], self.spec_scans[scan_num]['motors_positions']))).iteritems():
             self.widgets['tree_headers'].append([key, value])
 
     def action_scans_listbox_select(self, *args, **kwargs):
