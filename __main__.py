@@ -454,6 +454,8 @@ class Application(ttk.Frame):
         if self.formula_contains_variable('BG2'):
             rois_bg2_names = p['rois_bg2_columns']
 
+        self.profiler.start('eval-loop')
+
         for row in indices:
             if row in data:
                 col_num = 1
@@ -473,9 +475,10 @@ class Application(ttk.Frame):
                     # Store calculated intensities on columns intensity_0, intensity_1 etc
                     data[row].append(intensity)
                     col_num += 1 
-                #print len(data[row])
                 selected_data.append(data[row])
-        #print len(selected_data)
+
+        self.profiler.stop_and_print('eval-loop')
+
         return selected_data
 
     def formula_contains_variable(self, variable):
@@ -601,9 +604,6 @@ class Application(ttk.Frame):
         #intensity_columns = self.get_columns_indices(columnNames, '__intensity_*')
         intensity_columns = range(len(columnNames), len(columnNames)+len(rois_signal_columns))
         intensity_names = range(0, len(rois_signal_columns))
-        #print intensity_columns
-        #print intensity_names
-        #print len(intensity_columns), len(intensity_names)
 
         energy_column_list = self.get_columns_indices(columnNames, self.widgets['entry_energy_column'].stringvar.get())
         if energy_column_list:

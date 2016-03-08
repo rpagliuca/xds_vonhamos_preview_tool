@@ -40,14 +40,8 @@ class SpecParser:
             # Motors names should be initialized before reading each line, because it is an ocasional header that is not guarenteed to exist, and, when it does, it is not attached to a specific scan
             motors_names = []
 
-            self.profiler.start('loop-lines')
-            self.profiler.stop('loop-lines')
-            self.profiler.start('matches')
-            self.profiler.stop('matches')
-
             for line in fp:
 
-                self.profiler.resume('loop-lines')
 
                 # Lines not starting with comment (#) and
                 # which are not empty are treated as column values (actual data / measurements)
@@ -73,7 +67,6 @@ class SpecParser:
                     # Following regex starts with '?:', which is a non-capturing regex group
                     matches = re.findall(values_regex, line)
                     if matches:
-                        self.profiler.resume('matches')
                         columns_values = matches
 
                         #Ordered dict is too slow!!!!!!
@@ -84,7 +77,6 @@ class SpecParser:
                         self.scans[scan_id]['data_values'].append(columns_values)
                         self.scans[scan_id]['data_values_indexed'][row_number] = columns_values
                         self.scans[scan_id]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
-                        self.profiler.stop('matches')
                         row_number += 1
 
                 # Lines starting with #O are motor names
@@ -143,8 +135,3 @@ class SpecParser:
 
                 else:
                     last_line = 'OTHER'
-
-                self.profiler.stop('loop-lines')
-
-        self.profiler.print_total('loop-lines')
-        self.profiler.print_total('matches')
