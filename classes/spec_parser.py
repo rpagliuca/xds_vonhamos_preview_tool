@@ -8,6 +8,7 @@
 import re
 import os
 from collections import OrderedDict
+
 # Custom classes
 from profiler import *
 
@@ -16,7 +17,7 @@ class SpecParser:
     def __init__(self, specfile):
 
         # Variable initialization
-        self.scans = dict()
+        self.scans = OrderedDict()
 
         # Set file path
         self.specfile = specfile
@@ -36,6 +37,9 @@ class SpecParser:
         data_line_regex = re.compile('^[^#]')
         data_line_regex_other =  re.compile('^\s*$')
 
+        last_scan_id = 0
+        scan_prefix = 0
+
         with open(self.specfile) as fp:
             # Motors names should be initialized before reading each line, because it is an ocasional header that is not guarenteed to exist, and, when it does, it is not attached to a specific scan
             motors_names = []
@@ -48,8 +52,8 @@ class SpecParser:
                 if re.search(data_line_regex, line) and not re.search(data_line_regex_other, line):
                     # Headers for the current scans are over, so now we can store them
                     if last_line != 'DATA':
-                        self.scans[scan_id] = {
-                            'id': scan_id,
+                        self.scans[scan_id_prefix] = {
+                            'id': scan_id_prefix,
                             'command': scan_command,
                             'motors_names': motors_names,
                             'motors_positions': motors_positions,
@@ -72,11 +76,11 @@ class SpecParser:
                         #Ordered dict is too slow!!!!!!
 
                         #data_dict = OrderedDict(zip(columns_names, columns_values))
-                        #self.scans[scan_id]['data_dict'].append(data_dict)
-                        #self.scans[scan_id]['data_dict_indexed'][row_number] = data_dict
-                        self.scans[scan_id]['data_values'].append(columns_values)
-                        self.scans[scan_id]['data_values_indexed'][row_number] = columns_values
-                        self.scans[scan_id]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
+                        #self.scans[scan_id_prefix]['data_dict'].append(data_dict)
+                        #self.scans[scan_id_prefix]['data_dict_indexed'][row_number] = data_dict
+                        self.scans[scan_id_prefix]['data_values'].append(columns_values)
+                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = columns_values
+                        self.scans[scan_id_prefix]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
                         row_number += 1
 
                 # Lines starting with #O are motor names
@@ -102,6 +106,10 @@ class SpecParser:
                     last_line = '#S'
                     matches = re.findall('^#S\s([0-9]+)', line)
                     scan_id = int(matches[0])
+                    if scan_id <= last_scan_id:
+                        scan_prefix += 1
+                    last_scan_id = scan_id
+                    scan_id_prefix = str(scan_prefix) + '.' + str(scan_id)
                     scan_command = line.replace('\n', '').replace('\s', '')
                     # Reset some values
                     motors_positions = []

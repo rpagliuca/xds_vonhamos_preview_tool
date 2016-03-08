@@ -295,17 +295,18 @@ class Application(ttk.Frame):
         self.current_scan = scan_num
         self.scan_data_model = lib.tkintertable.TableModels.TableModel()
 
+        num_cols = len(self.spec_scans[scan_num]['data_values_indexed'][0])
+
         column_count = 0
         for column in self.spec_scans[scan_num]['columns_names']:
-            column_count += 1
-            if column_count == 10:
-                pass #break
+            if column_count == num_cols:
+                break
             self.scan_data_model.addColumn(column)
-
+            column_count += 1 
+        
         self.scan_data_model.data.update(self.spec_scans[scan_num]['data_values_indexed'])
         self.scan_data_model.reclist = self.scan_data_model.data.keys()
 
-        #self.scan_data_model.importDict(self.spec_scans[scan_num]['data_dict_indexed'])
         self.widgets['data_table'].setModel(self.scan_data_model)
         self.widgets['data_table'].createTableFrame()
         self.widgets['data_table'].select_All()
@@ -466,7 +467,7 @@ class Application(ttk.Frame):
                     if formula_contains_BG2:
                         formula = formula.replace('BG2', data[row][bg2_column])
                     if formula_contains_I0:
-                        formula = formula.replace('I0', data[row][p['i0_name']])
+                        formula = formula.replace('I0', data[row][p['i0_column']])
                     intensity = eval(formula) 
                     # Store calculated intensities on columns intensity_0, intensity_1 etc
                     data[row].append(intensity)
@@ -598,7 +599,7 @@ class Application(ttk.Frame):
         # This is automatically populated elsewhere according to Intensity Formula
         #intensity_columns = self.get_columns_indices(columnNames, '__intensity_*')
         intensity_columns = range(len(columnNames), len(columnNames)+len(rois_signal_columns))
-        intensity_names = range(0, len(rois_signal_columns))
+        intensity_names = rois_signal_names
 
         energy_column_list = self.get_columns_indices(columnNames, self.widgets['entry_energy_column'].stringvar.get())
         if energy_column_list:

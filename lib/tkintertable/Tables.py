@@ -359,13 +359,12 @@ class TableCanvas(Canvas):
     def adjustColumnWidths(self):
         """Optimally adjust col widths to accomodate the longest entry
             in each column - usually only called  on first redraw"""
-        #self.cols = self.model.getColumnCount()
         try:
             fontsize = self.thefont[1]
         except:
             fontsize = self.fontsize
         scale = 8.5 * float(fontsize)/12
-        for col in range(1):
+        for col in range(min(10, self.model.getColumnCount())):
             colname = self.model.getColumnName(col)
             if self.model.columnwidths.has_key(colname):
                 w = self.model.columnwidths[colname]

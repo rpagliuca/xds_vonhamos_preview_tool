@@ -136,11 +136,10 @@ class PlotWindow(tk.Toplevel):
         self.fig.canvas.draw()
 
     def columns_names_parse_as_int(self, columns_names):
-        return columns_names
-        #return_list = list()
-        #for name in columns_names:
-        #    return_list.append(int(re.findall('([0-9]+)', name)[0]))
-        #return return_list
+        return_list = list()
+        for name in columns_names:
+            return_list.append(int(re.findall('([0-9]+)', str(name))[0]))
+        return return_list
 
     def action_close(self):
         # Custom code when closing plot window
@@ -172,8 +171,8 @@ class PlotWindow(tk.Toplevel):
         rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
 
         # Fitting
-        calib = Tools.dict_to_numpy(p['calibration_data']) 
-        equation_parameters = np.polyfit(calib[:, 0], calib[:, 1], min(3, calib.shape[0]-1))
+        calib = Tools.list_to_numpy(p['calibration_data']) 
+        equation_parameters = np.polyfit(calib[:, 1], calib[:, 0], min(3, calib.shape[0]-1))
 
         # Apply fitting equation to ROIs numbers
         energies = np.polyval(equation_parameters, rois_numbers)
