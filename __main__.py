@@ -43,11 +43,13 @@ import ConfigParser
 import random, string
 import itertools
 import copy
+import time
 # Custom classes
 from classes.spec_parser import *
 from classes.custom_widgets import *
 from classes.plots import *
 from classes.tools import *
+from classes.profiler import *
 # Third party local libraries
 import lib.tkintertable
 import lib.tkintertable.TableModels
@@ -234,7 +236,9 @@ class Application(ttk.Frame):
     def __init__(self, master=None):
 
         self.root_dir = sys.path[0]
+        self.profiler = Profiler()
         self.default_open_dir = self.root_dir
+        self.default_open_file = None
         self.load_config_ini()
         ttk.Frame.__init__(self, master)
         self.set_window_icon(window=self.master)
@@ -268,7 +272,11 @@ class Application(ttk.Frame):
             return
 
         self.widgets['scans_listbox'].clear()
+
+        self.profiler.start('spec-parser')
         self.specfile = SpecParser(self.file_path)
+        self.profiler.stop_and_print('spec-parser')
+
         self.spec_scans = self.specfile.get_scans()
 
         for scan_id, scan_data in self.spec_scans.iteritems():
@@ -288,10 +296,25 @@ class Application(ttk.Frame):
         # Populate table with scan data
         self.current_scan = scan_num
         self.scan_data_model = lib.tkintertable.TableModels.TableModel()
-        self.scan_data_model.importDict(self.spec_scans[scan_num]['data_dict_indexed'])
+        self.profiler.start('import-model')
+
+        column_count = 0
+        for column in self.spec_scans[scan_num]['columns_names']:
+            column_count += 1
+            if column_count == 10:
+                pass #break
+            self.scan_data_model.addColumn(column)
+
+        self.scan_data_model.data.update(self.spec_scans[scan_num]['data_values_indexed'])
+        self.scan_data_model.reclist = self.scan_data_model.data.keys()
+        self.profiler.stop_and_print('import-model')
+
+        #self.scan_data_model.importDict(self.spec_scans[scan_num]['data_dict_indexed'])
+        self.profiler.start('table-frame')
         self.widgets['data_table'].setModel(self.scan_data_model)
         self.widgets['data_table'].createTableFrame()
         self.widgets['data_table'].select_All()
+        self.profiler.stop_and_print('table-frame')
         return
 
     def list_scan_headers(self, scan_num):
@@ -310,15 +333,19 @@ class Application(ttk.Frame):
         try:
             self.config_ini.read(self.config_ini_file)
             self.default_open_dir = self.config_ini.get('global', 'default_open_dir') 
+            self.default_open_file = self.config_ini.get('global', 'default_open_file') 
         except:
             self.debug_log('Error reading ' + self.config_ini_file)
 
     def store_default_open_dir(self, file_path):
         file_dir = os.path.dirname(file_path)
+        open_file = os.path.basename(file_path)
+        self.default_open_file = open_file
         self.default_open_dir = file_dir
         if not self.config_ini.has_section('global'):
             self.config_ini.add_section('global')
         self.config_ini.set('global', 'default_open_dir', file_dir)
+        self.config_ini.set('global', 'default_open_file', open_file)
         try:
             with open(self.config_ini_file, 'w') as configfile:
                 self.config_ini.write(configfile)
@@ -326,7 +353,7 @@ class Application(ttk.Frame):
             self.debug_log('Error writing ' + self.config_ini_file)
 
     def action_select_file(self):
-        file_path = fd.askopenfilename(initialdir=self.default_open_dir)
+        file_path = fd.askopenfilename(initialdir=self.default_open_dir, initialfile=self.default_open_file)
         self.open_file(file_path)
 
     def open_file(self, file_path):
@@ -419,14 +446,13 @@ class Application(ttk.Frame):
         rois_bg2_names = []
 
         if self.formula_contains_variable('S'):
-            rois_signal_names = p['rois_signal_names']
+            rois_signal_names = p['rois_signal_columns']
 
         if self.formula_contains_variable('BG1'):
-            rois_bg1_names = p['rois_bg1_names']
+            rois_bg1_names = p['rois_bg1_columns']
         
         if self.formula_contains_variable('BG2'):
-            rois_bg2_names = p['rois_bg2_names']
-
+            rois_bg2_names = p['rois_bg2_columns']
 
         for row in indices:
             if row in data:
@@ -445,9 +471,11 @@ class Application(ttk.Frame):
                         formula = formula.replace('I0', data[row][p['i0_name']])
                     intensity = eval(formula) 
                     # Store calculated intensities on columns intensity_0, intensity_1 etc
-                    data[row].update({'__intensity_' + str(col_num): intensity})
+                    data[row].append(intensity)
                     col_num += 1 
+                #print len(data[row])
                 selected_data.append(data[row])
+        #print len(selected_data)
         return selected_data
 
     def formula_contains_variable(self, variable):
@@ -498,10 +526,10 @@ class Application(ttk.Frame):
         self.log('* Figure %.0f - XES - %s' % (self.figure_number, os.path.basename(self.file_path))) 
 
         # Prepare numpy array
-        nparray = Tools.dict_to_numpy(data)
+        parameters = self.get_plot_parameters_and_validate(data)
+        nparray = Tools.list_to_numpy(data)
 
         # Create a new plot window
-        parameters = self.get_plot_parameters_and_validate(data)
         plot = XESPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
 
     def plot_herfd(self, data):
@@ -511,7 +539,7 @@ class Application(ttk.Frame):
         self.log('* Figure %.0f' % self.figure_number) 
 
         # Prepare numpy array
-        nparray = Tools.dict_to_numpy(data)
+        nparray = Tools.list_to_numpy(data)
 
         # Create a new plot window
         parameters = self.get_plot_parameters_and_validate(data)
@@ -520,7 +548,7 @@ class Application(ttk.Frame):
     def update_current_selected_data(self):
         # Prepare data
         data = self.get_selected_data()
-        nparray = Tools.dict_to_numpy(data)
+        nparray = Tools.list_to_numpy(data)
         # Create new plot window
         parameters = self.get_plot_parameters_and_validate(data)
         self.current_selected_data = nparray 
@@ -533,7 +561,7 @@ class Application(ttk.Frame):
         self.log('* Figure %.0f' % self.figure_number) 
 
         # Prepare data
-        nparray = Tools.dict_to_numpy(data)
+        nparray = Tools.list_to_numpy(data)
         parameters = self.get_plot_parameters_and_validate(data)
 
         # Create new plot window
@@ -557,30 +585,36 @@ class Application(ttk.Frame):
             self.log('* Using energy calibration')
 
     def get_plot_parameters(self, data):
+
+        columnNames = self.scan_data_model.columnNames
     
-        rois_signal_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_signal_columns'].stringvar.get())
-        rois_signal_names = np.asarray(data[0].keys())[rois_signal_columns]
+        rois_signal_columns = self.get_columns_indices(columnNames, self.widgets['entry_pilatus_signal_columns'].stringvar.get())
+        rois_signal_names = np.asarray(columnNames)[rois_signal_columns]
 
-        rois_bg1_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_bg1_columns'].stringvar.get())
-        rois_bg1_names = np.asarray(data[0].keys())[rois_bg1_columns]
+        rois_bg1_columns = self.get_columns_indices(columnNames, self.widgets['entry_pilatus_bg1_columns'].stringvar.get())
+        rois_bg1_names = np.asarray(columnNames)[rois_bg1_columns]
 
-        rois_bg2_columns = self.get_columns_indices(data[0].keys(), self.widgets['entry_pilatus_bg2_columns'].stringvar.get())
-        rois_bg2_names = np.asarray(data[0].keys())[rois_bg2_columns]
+        rois_bg2_columns = self.get_columns_indices(columnNames, self.widgets['entry_pilatus_bg2_columns'].stringvar.get())
+        rois_bg2_names = np.asarray(columnNames)[rois_bg2_columns]
 
         # This is automatically populated elsewhere according to Intensity Formula
-        intensity_columns = self.get_columns_indices(data[0].keys(), '__intensity_*')
-        intensity_names = np.asarray(data[0].keys())[intensity_columns]
+        #intensity_columns = self.get_columns_indices(columnNames, '__intensity_*')
+        intensity_columns = range(len(columnNames), len(columnNames)+len(rois_signal_columns))
+        intensity_names = range(0, len(rois_signal_columns))
+        #print intensity_columns
+        #print intensity_names
+        #print len(intensity_columns), len(intensity_names)
 
-        energy_column_list = self.get_columns_indices(data[0].keys(), self.widgets['entry_energy_column'].stringvar.get())
+        energy_column_list = self.get_columns_indices(columnNames, self.widgets['entry_energy_column'].stringvar.get())
         if energy_column_list:
             energy_column = energy_column_list[0]
         else:
             energy_column = False
 
-        i0_column_list = self.get_columns_indices(data[0].keys(), self.widgets['entry_i0_column'].stringvar.get())
+        i0_column_list = self.get_columns_indices(columnNames, self.widgets['entry_i0_column'].stringvar.get())
         if i0_column_list:
             i0_column = i0_column_list[0]
-            i0_name = np.asarray(data[0].keys())[i0_column]
+            i0_name = np.asarray(columnNames)[i0_column]
         else:
             i0_column = False
             i0_name = ''

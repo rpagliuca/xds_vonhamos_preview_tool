@@ -136,10 +136,11 @@ class PlotWindow(tk.Toplevel):
         self.fig.canvas.draw()
 
     def columns_names_parse_as_int(self, columns_names):
-        return_list = list()
-        for name in columns_names:
-            return_list.append(int(re.findall('([0-9]+)', name)[0]))
-        return return_list
+        return columns_names
+        #return_list = list()
+        #for name in columns_names:
+        #    return_list.append(int(re.findall('([0-9]+)', name)[0]))
+        #return return_list
 
     def action_close(self):
         # Custom code when closing plot window

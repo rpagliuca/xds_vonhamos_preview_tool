@@ -11,8 +11,8 @@ import numpy as np
 class Tools:
 
     @staticmethod
-    def dict_to_numpy(data):
+    def list_to_numpy(data):
         # Process list of dicts (data)
-        df = pandas.DataFrame.from_dict(data, dtype='float') # use Pandas to convert to dataframe
-        nparray = df.as_matrix(columns=data[0].keys()) # convert from Pandas to Numpy
+        df = pandas.DataFrame(data, dtype='float') # use Pandas to convert to dataframe
+        nparray = df.as_matrix() # convert from Pandas to Numpy
         return nparray

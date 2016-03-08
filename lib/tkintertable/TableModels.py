@@ -199,12 +199,12 @@ class TableModel(object):
         colname = self.getColumnName(columnIndex)
         coltype = self.columntypes[colname]
         name = self.getRecName(rowIndex)
-        #print self.data[name]
-        if self.data[name].has_key(colname):
-            celldata=self.data[name][colname]
-        else:
-            celldata=None
-        return celldata
+        try:
+            celldata=self.data[name][columnIndex]
+            return celldata
+        except:
+            print 'Error at getCellRecord(' + str(rowIndex) + ', ' + str(columnIndex) + ')'
+        return None
 
     def deleteCellRecord(self, rowIndex, columnIndex):
         """Remove the cell data at this row/column"""
