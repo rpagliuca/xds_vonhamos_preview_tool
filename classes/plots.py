@@ -173,6 +173,7 @@ class PlotWindow(tk.Toplevel):
         # Fitting
         calib = Tools.list_to_numpy(p['calibration_data']) 
         equation_parameters = np.polyfit(calib[:, 1], calib[:, 0], min(3, calib.shape[0]-1))
+        self.application.log(str(equation_parameters))
 
         # Apply fitting equation to ROIs numbers
         energies = np.polyval(equation_parameters, rois_numbers)
@@ -322,10 +323,16 @@ class RXESPlot(PlotWindow):
         # Getting peak position
         max_intensity_x_index, max_intensity_y_index = np.unravel_index(counts.argmax(), counts.shape)
 
-        # Colormap
+        # Axis
+        roi_axis = self.roi_axis()
         energies_values = self.data[:, p['energy_column']].tolist()
-        cs = self.main_axes.contourf(self.roi_axis(), energies_values, counts, 100, stride=1)
 
+        # Print cursor on profile position
+        self.main_axes.hlines(energies_values[max_intensity_x_index], min(roi_axis), max(roi_axis), linewidth=1, color='fuchsia', linestyles='dashed') 
+        self.main_axes.vlines(roi_axis[max_intensity_y_index], min(energies_values), max(energies_values), linewidth=1, color='fuchsia', linestyles='dashed') 
+        # Colormap
+        cs = self.main_axes.contourf(roi_axis, energies_values, counts, 100, stride=1)
+        
         # Hide main axes bottom label
         plt.setp(self.main_axes.get_xticklabels(), visible=False)
         self.main_axes.set_xlabel('')
@@ -337,11 +344,11 @@ class RXESPlot(PlotWindow):
         padding = abs(max(counts[:, max_intensity_y_index])-0)*padding_factor
         self.right_axes.axis([0-padding, max(counts[:, max_intensity_y_index])+padding, min(energies_values), max(energies_values)])
         # Profile at bottom axes
-        self.bottom_axes.plot(self.roi_axis(), counts[max_intensity_x_index, :])
-        self.bottom_axes.plot(self.roi_axis(), counts[max_intensity_x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0) # Scatter plot
+        self.bottom_axes.plot(roi_axis, counts[max_intensity_x_index, :])
+        self.bottom_axes.plot(roi_axis, counts[max_intensity_x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0) # Scatter plot
         padding = abs(max(counts[max_intensity_x_index, :])-0)*padding_factor
-        self.bottom_axes.axis([min(self.roi_axis()), max(self.roi_axis()), 0-padding, max(counts[max_intensity_x_index, :])+padding])
-        # BUG ALERT! When I tried using pyplot.colorbar instead of self.fig, TkInterTable stopped working with weird errors "wrong screen size" etc 
+        self.bottom_axes.axis([min(roi_axis), max(roi_axis), 0-padding, max(counts[max_intensity_x_index, :])+padding])
+        # BUG ALERT! When I tried using pyplot.colorbar instead of self.fig.colorbar below, TkInterTable stopped working with weird errors ("wrong screen size", etc.)
         self.fig.colorbar(cs, orientation="vertical", label="Intensity (a.u.)", ticks=np.linspace(0,1,11), cax=self.colorbar_axes)
         self.plot_redraw()
 
