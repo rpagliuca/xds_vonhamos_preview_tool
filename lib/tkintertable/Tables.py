@@ -228,6 +228,7 @@ class TableCanvas(Canvas):
         self.adjustColumnWidths()
         self.redrawTable(callback=callback)
         self.parentframe.bind("<Configure>", self.redrawVisible)
+
         self.tablecolheader.xview("moveto", 0)
         self.xview("moveto", 0)
         return
@@ -364,7 +365,7 @@ class TableCanvas(Canvas):
         except:
             fontsize = self.fontsize
         scale = 8.5 * float(fontsize)/12
-        for col in range(self.cols):
+        for col in range(1):
             colname = self.model.getColumnName(col)
             if self.model.columnwidths.has_key(colname):
                 w = self.model.columnwidths[colname]

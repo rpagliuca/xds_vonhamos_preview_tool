@@ -455,21 +455,27 @@ class Application(ttk.Frame):
             rois_bg2_names = p['rois_bg2_columns']
 
         self.profiler.start('eval-loop')
+        self.profiler.start('eval-cmd')
+        self.profiler.stop('eval-cmd')
 
         for row in indices:
             if row in data:
                 col_num = 1
                 rois_names = itertools.izip_longest(rois_signal_names, rois_bg1_names, rois_bg2_names)
+                formula_contains_S = self.formula_contains_variable('S')
+                formula_contains_BG1 = self.formula_contains_variable('BG1')
+                formula_contains_BG2 = self.formula_contains_variable('BG2')
+                formula_contains_I0 = self.formula_contains_variable('I0')
                 for signal_column, bg1_column, bg2_column in rois_names:
                     formula = p['rois_formula'] 
                     # Replace variables on Intensity Formula by actual values
-                    if self.formula_contains_variable('S'):
+                    if formula_contains_S:
                         formula = formula.replace('S', data[row][signal_column])
-                    if self.formula_contains_variable('BG1'):
+                    if formula_contains_BG1:
                         formula = formula.replace('BG1', data[row][bg1_column])
-                    if self.formula_contains_variable('BG2'):
+                    if formula_contains_BG2:
                         formula = formula.replace('BG2', data[row][bg2_column])
-                    if self.formula_contains_variable('I0'):
+                    if formula_contains_I0:
                         formula = formula.replace('I0', data[row][p['i0_name']])
                     intensity = eval(formula) 
                     # Store calculated intensities on columns intensity_0, intensity_1 etc
@@ -478,6 +484,7 @@ class Application(ttk.Frame):
                 selected_data.append(data[row])
 
         self.profiler.stop_and_print('eval-loop')
+        self.profiler.print_total('eval-cmd')
 
         return selected_data
 
