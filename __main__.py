@@ -273,9 +273,7 @@ class Application(ttk.Frame):
 
         self.widgets['scans_listbox'].clear()
 
-        self.profiler.start('spec-parser')
         self.specfile = SpecParser(self.file_path)
-        self.profiler.stop_and_print('spec-parser')
 
         self.spec_scans = self.specfile.get_scans()
 
@@ -296,7 +294,6 @@ class Application(ttk.Frame):
         # Populate table with scan data
         self.current_scan = scan_num
         self.scan_data_model = lib.tkintertable.TableModels.TableModel()
-        self.profiler.start('import-model')
 
         column_count = 0
         for column in self.spec_scans[scan_num]['columns_names']:
@@ -307,14 +304,11 @@ class Application(ttk.Frame):
 
         self.scan_data_model.data.update(self.spec_scans[scan_num]['data_values_indexed'])
         self.scan_data_model.reclist = self.scan_data_model.data.keys()
-        self.profiler.stop_and_print('import-model')
 
         #self.scan_data_model.importDict(self.spec_scans[scan_num]['data_dict_indexed'])
-        self.profiler.start('table-frame')
         self.widgets['data_table'].setModel(self.scan_data_model)
         self.widgets['data_table'].createTableFrame()
         self.widgets['data_table'].select_All()
-        self.profiler.stop_and_print('table-frame')
         return
 
     def list_scan_headers(self, scan_num):
@@ -454,10 +448,6 @@ class Application(ttk.Frame):
         if self.formula_contains_variable('BG2'):
             rois_bg2_names = p['rois_bg2_columns']
 
-        self.profiler.start('eval-loop')
-        self.profiler.start('eval-cmd')
-        self.profiler.stop('eval-cmd')
-
         for row in indices:
             if row in data:
                 col_num = 1
@@ -483,8 +473,6 @@ class Application(ttk.Frame):
                     col_num += 1 
                 selected_data.append(data[row])
 
-        self.profiler.stop_and_print('eval-loop')
-        self.profiler.print_total('eval-cmd')
 
         return selected_data
 
