@@ -278,7 +278,7 @@ class Application(ttk.Frame):
         self.spec_scans = self.specfile.get_scans()
 
         for scan_id, scan_data in self.spec_scans.iteritems():
-            self.widgets['scans_listbox'].append(scan_data['command'], scan_data['id'])
+            self.widgets['scans_listbox'].append(scan_data['command'] + ' (' + scan_data['date'] + ')', scan_data['id'])
 
         if refresh:
             self.list_scan_data(self.current_scan) # For auto refresh mode
