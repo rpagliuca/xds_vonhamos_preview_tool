@@ -36,6 +36,8 @@ class PlotWindow(tk.Toplevel):
         self.new_normalization_value = 1
         self.base_value = 0
         self.new_base_value = 0
+        self.right_profile = None
+        self.bottom_profile = None
         self.plot_type = plot_type
         self.widgets = dict() # To be used by class descendants
 
@@ -215,6 +217,7 @@ class RXESPlot(PlotWindow):
         
         # Object properties
         self.calibration_flag = False
+        self.profile_flag = False
 
         self.add_profiles_and_colorbar()
 
@@ -230,10 +233,15 @@ class RXESPlot(PlotWindow):
         self.widgets['btn_calibration']["command"] = self.action_btn_calibration
         self.widgets['btn_calibration'].pack(side=tk.LEFT, padx=10, pady=5)
 
-        # Sum plots checkbox
+        # Transferred energy RXES checkbox
         self.widgets['cb_transferred'] = Checkbox(self.widgets['frame'], text='Energy transfer')
         self.widgets['cb_transferred'].pack(side=tk.LEFT, padx=10, pady=10)
         self.widgets['cb_transferred'].add_click_action(self.action_cb_transferred_click)
+
+        # Profile checkbox
+        self.widgets['btn_profile'] = ttk.Button(self.widgets['frame'], text='Profile center')
+        self.widgets['btn_profile']["command"] = self.action_btn_profile
+        self.widgets['btn_profile'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Pack buttons frame
         self.widgets['frame'].pack()
@@ -250,6 +258,16 @@ class RXESPlot(PlotWindow):
             self.calibration_flag = False
             self.canvas.mpl_disconnect(self.calibration_connection)
 
+    def action_btn_profile(self, *args, **kwargs):
+        if not self.profile_flag:
+            self.profile_flag = True
+            self.widgets['btn_profile']['text'] = 'Please double-click at the new center...'
+            self.profile_connection = self.canvas.mpl_connect('button_press_event', self.action_profile_click)
+        else:
+            self.widgets['btn_profile']['text'] = 'Profile center'
+            self.profile_flag = False
+            self.canvas.mpl_disconnect(self.profile_connection)
+
     def action_calibration_click(self, event, *args, **kwargs):
         if event.dblclick and event.inaxes == self.main_axes:
             x = event.xdata
@@ -260,103 +278,177 @@ class RXESPlot(PlotWindow):
                 w.see(item_id)
                 self.application.widgets['cb_calib'].var.set(True)
 
+    def action_profile_click(self, event, *args, **kwargs):
+        if event.dblclick and event.inaxes == self.main_axes:
+            x = event.xdata
+            y = event.ydata
+            X, Y, Z, Xmesh, Ymesh, Zmesh = self.plot_data 
+            self.plot_profiles(X, Y, Z, Xmesh, Ymesh, Zmesh, event.xdata, event.ydata)
+            self.widgets['btn_profile']['text'] = 'Profile center'
+            self.profile_flag = False
+            self.canvas.mpl_disconnect(self.profile_connection)
+
+    def set_profile_axes_limits(self, X, Y, Z, Xmesh, Ymesh, Zmesh):
+        padding_factor = 0.1
+        padding = (np.amax(Zmesh[:, :])-0)*padding_factor
+        self.right_axes.axis([0-padding, np.amax(Zmesh[:, :])+padding, np.amin(Ymesh[:, :]), np.amax(Ymesh[:, :])])
+        padding = (np.amax(Z[:, :])-0)*padding_factor
+        self.bottom_axes.axis([np.amin(X[:, :]), np.amax(X[:, :]), 0-padding, np.amax(Z[:, :])+padding])
+        # Profile axis steps configuration
+        self.right_axes.get_xaxis().set_major_locator(matplotlib.ticker.FixedLocator([0, 0.5, 1]))
+        self.bottom_axes.get_yaxis().set_major_locator(matplotlib.ticker.FixedLocator([0, 0.5, 1]))
+        plt.setp(self.right_axes.get_yticklabels(), visible=False)
+
     def plot_transferred(self):
 
-        p = self.parameters
-        # Generate colormap
-        counts = self.data[:, p['intensity_columns']]
-        # Normalize
-        counts = np.divide(counts, np.amax(counts))
+        # Plot Data
+        self.update_plot_data('transferred') 
+        X, Y, Z, Xmesh, Ymesh, Zmesh = self.plot_data
 
-        X = self.roi_axis()
-        min_x = float(min(X))
-        max_x = float(max(X))
-        x_average_step = (max_x-min_x)/(len(X)-1)
-        Y = self.data[:, p['energy_column']].tolist()
-        min_y = float(min(Y))
-        max_y = float(max(Y))
-        y_average_step = (max_y-min_y)/(len(Y)-1)
-        Y = np.transpose(np.tile(Y, (len(X), 1)))
-        X = np.tile(X, (Y.shape[0], 1))
-        X_transferred = Y - X
-        min_x_transferred = np.amin(X_transferred)
-        max_x_transferred = np.amax(X_transferred)
-        Xmesh, Ymesh = np.meshgrid(np.arange(min_x_transferred, max_x_transferred, x_average_step), np.arange(min_y, max_y, y_average_step))
-        Zmesh = griddata(np.reshape(X_transferred,-1), np.reshape(Y,-1), np.reshape(counts,-1), Xmesh, Ymesh, interp='linear')
-
-        # Getting peak position
-        max_intensity_x_index, max_intensity_y_index = np.unravel_index(counts.argmax(), counts.shape)
-        max_intensity_x_index_mesh, max_intensity_y_index_mesh = np.unravel_index(Zmesh.argmax(), Zmesh.shape)
+        # Show colormap scatter grid
+        # self.main_axes.plot(Xmesh, Ymesh, 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)
 
         # Colormap
-        energies_values = self.data[:, p['energy_column']].tolist()
-        # Show colormap grid
-        # self.main_axes.plot(Xmesh, Ymesh, 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)
-        cs = self.main_axes.contourf(X_transferred, Y, counts, 100, stride=1)
+        cs = self.main_axes.contourf(X, Y, Z, 100, stride=1)
 
-        # Hide main axes bottom label
-        plt.setp(self.main_axes.get_xticklabels(), visible=False)
-        self.main_axes.set_xlabel('')
-
-        # Profile at right axes
-        self.right_axes.plot(Zmesh[:, max_intensity_y_index_mesh], Ymesh[:, max_intensity_y_index_mesh])
-        self.right_axes.plot(Zmesh[:, max_intensity_y_index_mesh], Ymesh[:, max_intensity_y_index_mesh], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0) # Scatter plot
-        padding_factor = 0.1
-        padding = abs(np.amax(Zmesh[:, max_intensity_y_index_mesh])-0)*padding_factor
-        self.right_axes.axis([0-padding, np.amax(Zmesh[:, max_intensity_y_index_mesh])+padding, np.amin(Ymesh[:, max_intensity_y_index_mesh]), np.amax(Ymesh[:, max_intensity_y_index_mesh])])
-        # Profile at bottom axes
-        self.bottom_axes.plot(X_transferred[max_intensity_x_index, :], counts[max_intensity_x_index, :])
-        self.bottom_axes.plot(X_transferred[max_intensity_x_index, :], counts[max_intensity_x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0) # Scatter plot
-        padding = abs(np.amax(counts[max_intensity_x_index_mesh, :])-0)*padding_factor
-        self.bottom_axes.axis([np.amin(X_transferred[max_intensity_x_index, :]), np.amax(X_transferred[max_intensity_x_index, :]), 0-padding, np.amax(counts[max_intensity_x_index, :])+padding])
+        # Profiles
+        self.plot_profiles(X, Y, Z, Xmesh, Ymesh, Zmesh)
+        self.set_profile_axes_limits(X, Y, Z, Xmesh, Ymesh, Zmesh)
 
         # BUG ALERT! 2016-02-23 - When I tried using pyplot.colorbar instead of self.fig, TkInterTable stopped working with weird errors "wrong screen size" etc 
         self.fig.colorbar(cs, orientation="vertical", label="Intensity (a.u.)", ticks=np.linspace(0,1,11), cax=self.colorbar_axes)
         self.plot_redraw()
 
-    def plot_emitted(self):
+    def update_plot_data(self, plot_type):
+
         p = self.parameters
-        # Generate colormap
+        # Intensities
         counts = self.data[:, p['intensity_columns']]
         # Normalize
         counts = np.divide(counts, np.amax(counts))
-        # Getting peak position
-        max_intensity_x_index, max_intensity_y_index = np.unravel_index(counts.argmax(), counts.shape)
-
         # Axis
         roi_axis = self.roi_axis()
         energies_values = self.data[:, p['energy_column']].tolist()
 
-        # Print cursor on profile position
-        self.main_axes.hlines(energies_values[max_intensity_x_index], min(roi_axis), max(roi_axis), linewidth=1, color='fuchsia', linestyles='dashed') 
-        self.main_axes.vlines(roi_axis[max_intensity_y_index], min(energies_values), max(energies_values), linewidth=1, color='fuchsia', linestyles='dashed') 
-        # Colormap
-        cs = self.main_axes.contourf(roi_axis, energies_values, counts, 100, stride=1)
-        
-        # Hide main axes bottom label
-        plt.setp(self.main_axes.get_xticklabels(), visible=False)
-        self.main_axes.set_xlabel('')
+        X = roi_axis
+        Y = energies_values
+        Z = counts
 
-        # Profile at right axes
-        self.right_axes.plot(counts[:, max_intensity_y_index], energies_values) # Line plot
-        self.right_axes.plot(counts[:, max_intensity_y_index], energies_values, 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0) # Scatter plot
-        padding_factor = 0.1
-        padding = abs(max(counts[:, max_intensity_y_index])-0)*padding_factor
-        self.right_axes.axis([0-padding, max(counts[:, max_intensity_y_index])+padding, min(energies_values), max(energies_values)])
-        # Profile at bottom axes
-        self.bottom_axes.plot(roi_axis, counts[max_intensity_x_index, :])
-        self.bottom_axes.plot(roi_axis, counts[max_intensity_x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0) # Scatter plot
-        padding = abs(max(counts[max_intensity_x_index, :])-0)*padding_factor
-        self.bottom_axes.axis([min(roi_axis), max(roi_axis), 0-padding, max(counts[max_intensity_x_index, :])+padding])
+        if np.array(X).shape != Z.shape:
+            X = np.transpose(np.tile(np.array(X)[:, np.newaxis], Z.shape[0]))
+        if np.array(Y).shape != Z.shape:
+            Y = np.tile(np.array(Y)[:, np.newaxis], Z.shape[1])
+
+        if plot_type == 'emitted':
+
+            self.plot_data = [X, Y, Z, X, Y, Z]
+
+        elif plot_type == 'transferred':
+
+            # Matrix of energy transfer
+            X_transferred = Y - X
+
+            # Some useful values
+            min_x = float(np.amin(X))
+            max_x = float(np.amax(X))
+            x_average_step = (max_x-min_x)/(X.shape[0]-1)
+            min_y = float(np.amin(Y))
+            max_y = float(np.amax(Y))
+            y_average_step = (max_y-min_y)/(Y.shape[1]-1)
+            min_x_transferred = np.amin(X_transferred)
+            max_x_transferred = np.amax(X_transferred)
+
+            Xmesh, Ymesh = np.meshgrid(np.arange(min_x_transferred, max_x_transferred, x_average_step), np.arange(min_y, max_y, y_average_step))
+            Zmesh = griddata(np.reshape(X_transferred,-1), np.reshape(Y,-1), np.reshape(counts,-1), Xmesh, Ymesh, interp='linear')
+
+            self.plot_data = [X_transferred, Y, Z, Xmesh, Ymesh, Zmesh]
+
+    def plot_emitted(self):
+
+        # Plot Data
+        self.update_plot_data('emitted') 
+        X, Y, Z, Xmesh, Ymesh, Zmesh = self.plot_data
+
+        # Colormap
+        cs = self.main_axes.contourf(X, Y, Z, 100, stride=1)
+
+        # Profiles
+        self.plot_profiles(X, Y, Z, Xmesh, Ymesh, Zmesh)
+        self.set_profile_axes_limits(X, Y, Z, Xmesh, Ymesh, Zmesh)
+        
         # BUG ALERT! When I tried using pyplot.colorbar instead of self.fig.colorbar below, TkInterTable stopped working with weird errors ("wrong screen size", etc.)
         self.fig.colorbar(cs, orientation="vertical", label="Intensity (a.u.)", ticks=np.linspace(0,1,11), cax=self.colorbar_axes)
         self.plot_redraw()
 
+    def find_closest_in_array(self, X, x0):
+            # Find x position in array X
+            x_pos = 0
+            x_index = -1
+            for x in X:
+                if x_pos > 0:
+                    if abs(x-x0) >= last_diff:
+                        x_index = x_pos-1
+                        break
+                last_diff = abs(x-x0) 
+                x_pos += 1
+            # It max be the last item of the array
+            if x_index == -1:
+                x_index = x_pos-1
+            return x_index
+
+    def plot_profiles(self, X, Y, Z, Xmesh=None, Ymesh=None, Zmesh=None, profile_x=None, profile_y=None):
+
+        # Getting profile center position
+        if profile_x is None or profile_y is None: 
+            # If profile_x and profile_y not defined, use max intensity as center
+            x_index, y_index = np.unravel_index(Z.argmax(), Z.shape)
+            x_index_mesh, y_index_mesh = np.unravel_index(Zmesh.argmax(), Zmesh.shape)
+        else:
+            # Find the closest positions (x, y) to the ones clicked by the user
+            x_index = self.find_closest_in_array(Y[:, 0], profile_y)
+            y_index = self.find_closest_in_array(X[x_index, :], profile_x)
+            x_index_mesh = self.find_closest_in_array(Ymesh[:, 0], profile_y)
+            y_index_mesh = self.find_closest_in_array(Xmesh[x_index_mesh, :], profile_x)
+
+        # Try to remove horizontal and vertical line, if they already exist
+        try:
+            self.hline.remove()
+            self.vline.remove()
+        except:
+            pass
+
+        # Print crossbar on profile position
+        self.hline = self.main_axes.hlines(Y[x_index, y_index], np.amin(X), np.amax(X), linewidth=2, color='fuchsia', linestyles='dashed') 
+        self.vline = self.main_axes.vlines(X[x_index, y_index], np.amin(Y), np.amax(Y), linewidth=2, color='fuchsia', linestyles='dashed') 
+
+        # Profile at right axes
+        if self.right_profile is None:
+            self.right_profile = self.right_axes.plot(Zmesh[:, y_index_mesh], Ymesh[:, y_index_mesh])[0] # Line plot
+            self.right_profile_scatter = self.right_axes.plot(Zmesh[:, y_index_mesh], Ymesh[:, y_index_mesh], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)[0] # Scatter plot
+        else:
+            self.right_profile.set_xdata(Zmesh[:, y_index_mesh])
+            self.right_profile.set_ydata(Ymesh[:, y_index_mesh])
+            self.right_profile_scatter.set_xdata(Zmesh[:, y_index_mesh])
+            self.right_profile_scatter.set_ydata(Ymesh[:, y_index_mesh])
+
+        # Profile at bottom axes
+        if self.bottom_profile is None:
+            self.bottom_profile = self.bottom_axes.plot(X[x_index, :], Z[x_index, :])[0]
+            self.bottom_profile_scatter = self.bottom_axes.plot(X[x_index, :], Z[x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)[0] # Scatter plot
+        else:
+            self.bottom_profile.set_xdata(Xmesh[x_index_mesh, :])
+            self.bottom_profile.set_ydata(Zmesh[x_index_mesh, :])
+            self.bottom_profile_scatter.set_xdata(Xmesh[x_index_mesh, :])
+            self.bottom_profile_scatter.set_ydata(Zmesh[x_index_mesh, :])
+
+        # Redraw changes
+        self.fig.canvas.draw()
+
     def config_plot_custom(self):
         self.main_axes.set_ylabel('Incoming energy (keV)')
-        self.right_axes.get_xaxis().set_major_locator(matplotlib.ticker.FixedLocator([0, 0.5, 1]))
-        plt.setp(self.right_axes.get_yticklabels(), visible=False)
-        self.bottom_axes.get_yaxis().set_major_locator(matplotlib.ticker.FixedLocator([0, 0.5, 1]))
+        # Hide main axes bottom label
+        plt.setp(self.main_axes.get_xticklabels(), visible=False)
+        self.main_axes.set_xlabel('')
 
     def refresh_plot(self):
         self.main_axes.clear()
@@ -364,6 +456,8 @@ class RXESPlot(PlotWindow):
         self.bottom_axes.clear()
         self.colorbar_axes.clear()
         plot_transferred = self.widgets['cb_transferred'].value()
+        self.right_profile = None
+        self.bottom_profile = None
         if plot_transferred:
             self.plot_transferred()
         else:
