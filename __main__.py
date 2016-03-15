@@ -696,6 +696,7 @@ class Application(ttk.Frame):
             self.load_spec_file(refresh=True)
         self.after(10000, self.timer)
 
+
 # Init TK Master
 root = tk.Tk()
 root.geometry("1000x700+30+30") # width x height + padding_x + padding_y

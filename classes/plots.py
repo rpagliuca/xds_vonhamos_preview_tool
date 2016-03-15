@@ -20,6 +20,7 @@ import numpy as np
 # Custom classes
 from tools import *
 from custom_widgets import *
+from gaussian_fit import *
 import timeit
 
 class PlotWindow(tk.Toplevel):
@@ -421,25 +422,47 @@ class RXESPlot(PlotWindow):
         self.hline = self.main_axes.hlines(Y[x_index, y_index], np.amin(X), np.amax(X), linewidth=2, color='fuchsia', linestyles='dashed') 
         self.vline = self.main_axes.vlines(X[x_index, y_index], np.amin(Y), np.amax(Y), linewidth=2, color='fuchsia', linestyles='dashed') 
 
+        # Gaussian fit for right axes
+        ylim = self.right_axes.get_ylim()
+        y_index_min = self.find_closest_in_array(Ymesh[:, y_index_mesh], ylim[0])
+        y_index_max = self.find_closest_in_array(Ymesh[:, y_index_mesh], ylim[1])
+        y_index_min, y_index_max = sorted([y_index_min, y_index_max]) # Sort lower and higher indices
+        fit = GaussianFit(np.nan_to_num(Ymesh[y_index_min:y_index_max+1, y_index_mesh]), np.nan_to_num(Zmesh[y_index_min:y_index_max+1, y_index_mesh]))
+        self.application.log('* Right axes Gaussian fit FWHM: ' + str(fit.get_fwhm()))
+
         # Profile at right axes
         if self.right_profile is None:
             self.right_profile = self.right_axes.plot(Zmesh[:, y_index_mesh], Ymesh[:, y_index_mesh])[0] # Line plot
             self.right_profile_scatter = self.right_axes.plot(Zmesh[:, y_index_mesh], Ymesh[:, y_index_mesh], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)[0] # Scatter plot
+            self.right_profile_fit = self.right_axes.plot(fit.get_fit_y_data(), Ymesh[y_index_min:y_index_max+1, y_index_mesh], '--', color='red', linewidth=2.0)[0] # Fit plot
         else:
             self.right_profile.set_xdata(Zmesh[:, y_index_mesh])
             self.right_profile.set_ydata(Ymesh[:, y_index_mesh])
             self.right_profile_scatter.set_xdata(Zmesh[:, y_index_mesh])
             self.right_profile_scatter.set_ydata(Ymesh[:, y_index_mesh])
+            self.right_profile_fit.set_xdata(fit.get_fit_y_data())
+            self.right_profile_fit.set_ydata(Ymesh[y_index_min:y_index_max+1, y_index_mesh])
+
+        # Gaussian fit for bottom axes
+        xlim = self.bottom_axes.get_xlim()
+        x_index_min = self.find_closest_in_array(X[x_index, :], xlim[0])
+        x_index_max = self.find_closest_in_array(X[x_index, :], xlim[1])
+        x_index_min, x_index_max = sorted([x_index_min, x_index_max]) # Sort lower and higher indices
+        fit = GaussianFit(X[x_index, x_index_min:x_index_max+1], Z[x_index, x_index_min:x_index_max+1])
+        self.application.log('* Bottom axes Gaussian fit FWHM: ' + str(fit.get_fwhm()))
 
         # Profile at bottom axes
         if self.bottom_profile is None:
             self.bottom_profile = self.bottom_axes.plot(X[x_index, :], Z[x_index, :])[0]
             self.bottom_profile_scatter = self.bottom_axes.plot(X[x_index, :], Z[x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)[0] # Scatter plot
+            self.bottom_profile_fit = self.bottom_axes.plot(X[x_index, x_index_min:x_index_max+1], fit.get_fit_y_data(), '--', color='red', linewidth=2.0)[0] # Fit plot
         else:
-            self.bottom_profile.set_xdata(Xmesh[x_index_mesh, :])
-            self.bottom_profile.set_ydata(Zmesh[x_index_mesh, :])
-            self.bottom_profile_scatter.set_xdata(Xmesh[x_index_mesh, :])
-            self.bottom_profile_scatter.set_ydata(Zmesh[x_index_mesh, :])
+            self.bottom_profile.set_xdata(X[x_index, :])
+            self.bottom_profile.set_ydata(Z[x_index, :])
+            self.bottom_profile_scatter.set_xdata(X[x_index, :])
+            self.bottom_profile_scatter.set_ydata(Z[x_index, :])
+            self.bottom_profile_fit.set_xdata(X[x_index, x_index_min:x_index_max+1])
+            self.bottom_profile_fit.set_ydata(fit.get_fit_y_data())
 
         # Redraw changes
         self.fig.canvas.draw()
