@@ -56,7 +56,7 @@ class GaussianFit():
         coeff = []
         try:
             coeff, var_matrix = scipy.optimize.curve_fit(self.gauss_func, self.x_data, self.y_data, p0=self.initial_guess)
-        except (RuntimeError, TypeError) as e:
+        except Exception as e:
             print 'Error finding parameters for Gaussian fit. Check library scipy or fitted data.'
             print e.message
         self.coeff = coeff
@@ -68,7 +68,10 @@ class GaussianFit():
         return self.initial_guess
 
     def get_fit_y_data(self):
-        return self.gauss_func(self.x_data, *self.coeff)
+        if self.coeff == []:
+            return 0.0*self.x_data
+        else:
+            return self.gauss_func(self.x_data, *self.coeff)
 
     # Gaussian fit -- http://stackoverflow.com/a/11507723/1501575
     # p0 is the initial guess for the fitting coefficients (A, mu and sigma above)
@@ -77,9 +80,15 @@ class GaussianFit():
         return A*np.exp(-(x-mu)**2/(2.*sigma**2)) + B
 
     def print_summary(self):
-        print 'Fitted mean = ' + str(self.coeff[1])
-        print 'Fitted standard deviation = ' + str(abs(self.coeff[2]))
-        print 'Fitted FWHM = ' + str(self.get_fwhm())
+        if self.coeff == []:
+            print 'Error fitting'
+        else:
+            print 'Fitted mean = ' + str(self.coeff[1])
+            print 'Fitted standard deviation = ' + str(abs(self.coeff[2]))
+            print 'Fitted FWHM = ' + str(self.get_fwhm())
 
     def get_fwhm(self):
-        return 2*np.sqrt(2*np.log(2))*abs(self.coeff[2]) # http://stackoverflow.com/a/10605108/1501575
+        if self.coeff == []:
+           return -1 
+        else:
+            return 2*np.sqrt(2*np.log(2))*abs(self.coeff[2]) # http://stackoverflow.com/a/10605108/1501575

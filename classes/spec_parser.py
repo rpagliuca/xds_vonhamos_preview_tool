@@ -57,7 +57,7 @@ class SpecParser:
                             'command': scan_command,
                             'motors_names': motors_names,
                             'motors_positions': motors_positions,
-                            'columns_names': columns_names,
+                            'columns_names': ['row_number', ] + columns_names, # append row_number column
                             'exposure_time': exposure_time,
                             'date': scan_date,
                             'data_dict': list(),
@@ -78,8 +78,8 @@ class SpecParser:
                         #data_dict = OrderedDict(zip(columns_names, columns_values))
                         #self.scans[scan_id_prefix]['data_dict'].append(data_dict)
                         #self.scans[scan_id_prefix]['data_dict_indexed'][row_number] = data_dict
-                        self.scans[scan_id_prefix]['data_values'].append(columns_values)
-                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = columns_values
+                        self.scans[scan_id_prefix]['data_values'].append([row_number+1, ] + columns_values)
+                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = [row_number+1, ] + columns_values
                         self.scans[scan_id_prefix]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
                         row_number += 1
 
@@ -99,7 +99,6 @@ class SpecParser:
                     matches = re.findall('\s([a-zA-Z0-9\._-]+)', line)
                     if matches:
                         motors_positions.extend(matches)
-
 
                 # Lines starting with #S are beggining of scans (scan header)
                 elif re.search('^#S', line):

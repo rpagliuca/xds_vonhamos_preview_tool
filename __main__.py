@@ -252,6 +252,8 @@ class Application(ttk.Frame):
         self.figure_number = 0
         self.file_path = ''
         self.filename = ''
+        # Create a new plot window
+        self.desktop_plot = DesktopPlot(master = self.master, application = self)
 
         self.configs = { 's': 'entry_pilatus_signal_columns',
                     'bg1': 'entry_pilatus_bg1_columns',
@@ -633,7 +635,8 @@ class Application(ttk.Frame):
             'use_calibration': use_calibration,
             'calibration_data': calibration_data,
             'intensity_columns': intensity_columns,
-            'intensity_names': intensity_names
+            'intensity_names': intensity_names,
+            'row_number_column': 0,
         }
         return parameters
     
