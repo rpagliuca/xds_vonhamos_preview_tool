@@ -55,7 +55,7 @@ class PlotWindow(tk.Toplevel):
         if figure_number is not None:
             self.title('Figure %.0f - %s - %s' % (figure_number, plot_type, (self.application.filename))) 
         else:
-            self.title('Desktop Figure') 
+            self.title('Clipboard') 
 
         self.protocol("WM_DELETE_WINDOW", self.action_close)
         self.fig = Figure()
@@ -67,6 +67,9 @@ class PlotWindow(tk.Toplevel):
 
         # This functions loops every 10 seconds
         self.after(0, self.timer())
+
+    def artist_label_prefix(self):
+        return 'Fig. ' + str(self.figure_number)
 
     def onpick(self, event):
 
@@ -136,7 +139,8 @@ class PlotWindow(tk.Toplevel):
         self.widgets['cb_auto_refresh'].pack(side=tk.LEFT, padx=10, pady=10)
 
         # Pack buttons frame
-        self.widgets['frame'].pack()
+        #self.widgets['frame'].pack()
+        self.widgets['frame'].grid(row=0, column=0)
 
     def default_config(self):
         self.main_axes.get_xaxis().get_major_formatter().set_useOffset(False)
@@ -172,13 +176,15 @@ class PlotWindow(tk.Toplevel):
 
     def show(self):
         # Show plot
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+        self.widgets['canvas_frame'] = ttk.Frame(self)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.widgets['canvas_frame'])
         self.canvas.show()
         self.canvas.get_tk_widget().pack()
-        self.toolbar = NavigationToolbar2TkAgg(self.canvas, self)
+        self.toolbar = NavigationToolbar2TkAgg(self.canvas, self.widgets['canvas_frame'])
         self.toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.canvas.mpl_connect('pick_event', self.onpick)
+        #self.widgets['canvas_frame'].grid(row=1, column=0)
 
     def config_plot(self):
         self.default_config()
@@ -305,7 +311,8 @@ class RXESPlot(PlotWindow):
         self.widgets['btn_profile'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Pack buttons frame
-        self.widgets['frame'].pack()
+        #self.widgets['frame'].pack()
+        self.widgets['frame'].grid(row=0, column=0)
 
     def action_btn_calibration(self, *args, **kwargs):
         if not self.calibration_flag:
@@ -563,7 +570,8 @@ class HERFDPlot(PlotWindow):
         self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
 
         # Pack buttons frame
-        self.widgets['frame'].pack()
+        #self.widgets['frame'].pack()
+        self.widgets['frame'].grid(row=0, column=0)
 
     def plot_multiple(self):
         p = self.parameters
@@ -616,7 +624,8 @@ class XESPlot(PlotWindow):
         self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
 
         # Pack buttons frame
-        self.widgets['frame'].pack()
+        #self.widgets['frame'].pack()
+        self.widgets['frame'].grid(row=0, column=0)
 
     def plot_multiple(self):
         p = self.parameters
@@ -629,6 +638,7 @@ class XESPlot(PlotWindow):
         normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
         for row_index in range(len(normalized_data)):
             label = 'Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']])
+
             self.main_axes.plot(roi_axis, normalized_data[row_index, :], picker=self.picker_tolerance, label=label)
 
         self.plot_redraw()
@@ -659,12 +669,12 @@ class XESPlot(PlotWindow):
         else:
             self.plot_multiple()
 
-class DesktopPlot(PlotWindow):
+class ClipboardPlot(PlotWindow):
 
     def __init__(self, *args, **kwargs):
 
         # Inheritance
-        PlotWindow.__init__(self, plot_type='Desktop', *args, **kwargs)
+        PlotWindow.__init__(self, plot_type='Clipboard', *args, **kwargs)
         
         # Init
         self.add_widgets()
@@ -683,7 +693,8 @@ class DesktopPlot(PlotWindow):
         self.widgets['btn_normalization_single'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Pack buttons frame
-        self.widgets['frame'].pack()
+        #self.widgets['frame'].pack()
+        self.widgets['frame'].grid(row=0, column=0)
 
     def action_btn_normalization_single(self, *args, **kwargs):
         if not self.normalization_single_flag:
@@ -721,114 +732,116 @@ class DesktopPlot(PlotWindow):
     def config_plot_custom(self):
         pass
 
-class HERFDPlot(PlotWindow):
-
-    def __init__(self, *args, **kwargs):
-        PlotWindow.__init__(self, plot_type='HERFD', *args, **kwargs)
-        self.add_widgets()
-        self.show()
-        self.plot_multiple()
-
-    def add_widgets(self):
-
-        # Sum plots checkbox
-        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
-        self.widgets['cb_sum'].pack(side=tk.LEFT, padx=10, pady=10)
-        self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
-
-        # Pack buttons frame
-        self.widgets['frame'].pack()
-
-    def plot_multiple(self):
-        p = self.parameters
-        self.main_axes.clear()
-
-        normalized_data = np.divide(self.data[:, p['intensity_columns']], self.normalization_value) - self.base_value/self.normalization_value
-        for roi_index in range(len(p['intensity_columns'])):
-            label = 'Fig. ' + str(self.figure_number) + ' - ROI = ' + p['intensity_names'][roi_index]
-            self.main_axes.plot(self.data[:, p['energy_column']], normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
-
-        self.plot_redraw()
-
-    def plot_sum(self):
-        p = self.parameters
-        self.main_axes.clear()
-
-        normalized_data = np.sum(np.divide(self.data[:, p['intensity_columns']], self.normalization_value), axis=1) - self.base_value/self.normalization_value
-
-        # Add plot line of the sum
-        self.main_axes.plot(self.data[:, p['energy_column']], normalized_data, picker=self.picker_tolerance, label='Sum')
-        self.plot_redraw()
-
-    def config_plot_custom(self):
-        self.main_axes.set_xlabel('Incoming energy (keV)')
-        self.main_axes.set_ylabel('Intensity')
-
-    def action_cb_sum_click(self, *args, **kwargs):
-        self.refresh_plot()
-
-    def refresh_plot(self):
-        plot_sum = self.widgets['cb_sum'].value()
-        if plot_sum:
-            self.plot_sum()
-        else:
-            self.plot_multiple()
-
-class XESPlot(PlotWindow):
-
-    def __init__(self, *args, **kwargs):
-        PlotWindow.__init__(self, plot_type='XES', *args, **kwargs)
-        self.add_widgets()
-        self.show()
-        self.plot_multiple()
-
-    def add_widgets(self):
-
-        # Sum plots checkbox
-        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
-        self.widgets['cb_sum'].pack(side=tk.LEFT)
-        self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
-
-        # Pack buttons frame
-        self.widgets['frame'].pack()
-
-    def plot_multiple(self):
-        p = self.parameters
-        self.main_axes.clear()
-
-        # Generate plot lines
-        rows, columns = self.data.shape
-        roi_axis = self.roi_axis()
-
-        normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
-        for row_index in range(len(normalized_data)):
-            label = 'Fig. ' + str(self.figure_number) + ' - Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']])
-            self.main_axes.plot(roi_axis, normalized_data[row_index, :], picker=self.picker_tolerance, label=label)
-
-        self.plot_redraw()
-
-    def plot_sum(self):
-        p = self.parameters
-        self.main_axes.clear()
-
-        # Generate plot lines
-        rows, columns = self.data.shape
-        roi_axis = self.roi_axis()
-
-        normalized_data = np.sum(np.divide(self.data[0:rows, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value), axis=0) - self.base_value/self.normalization_value
-        # Add plot line
-        self.main_axes.plot(roi_axis, normalized_data, picker=self.picker_tolerance, label='Sum')
-        self.plot_redraw()
-
-    def config_plot_custom(self):
-        self.main_axes.set_ylabel('Intensity')
-
-    def action_cb_sum_click(self, *args, **kwargs):
-        self.refresh_plot()
-
-    def refresh_plot(self):
-        plot_sum = self.widgets['cb_sum'].value()
-        if plot_sum:
-            self.plot_sum()
-        else:
-            self.plot_multiple()
+#class HERFDPlot(PlotWindow):
+#
+#    def __init__(self, *args, **kwargs):
+#        PlotWindow.__init__(self, plot_type='HERFD', *args, **kwargs)
+#        self.add_widgets()
+#        self.show()
+#        self.plot_multiple()
+#
+#    def add_widgets(self):
+#
+#        # Sum plots checkbox
+#        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
+#        self.widgets['cb_sum'].pack(side=tk.LEFT, padx=10, pady=10)
+#        self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
+#
+#        # Pack buttons frame
+#        #self.widgets['frame'].pack()
+#        self.widgets['frame'].grid(row=0, column=0)
+#
+#    def plot_multiple(self):
+#        p = self.parameters
+#        self.main_axes.clear()
+#
+#        normalized_data = np.divide(self.data[:, p['intensity_columns']], self.normalization_value) - self.base_value/self.normalization_value
+#        for roi_index in range(len(p['intensity_columns'])):
+#            label = 'Fig. ' + str(self.figure_number) + ' - ROI = ' + p['intensity_names'][roi_index]
+#            self.main_axes.plot(self.data[:, p['energy_column']], normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
+#
+#        self.plot_redraw()
+#
+#    def plot_sum(self):
+#        p = self.parameters
+#        self.main_axes.clear()
+#
+#        normalized_data = np.sum(np.divide(self.data[:, p['intensity_columns']], self.normalization_value), axis=1) - self.base_value/self.normalization_value
+#
+#        # Add plot line of the sum
+#        self.main_axes.plot(self.data[:, p['energy_column']], normalized_data, picker=self.picker_tolerance, label='Sum')
+#        self.plot_redraw()
+#
+#    def config_plot_custom(self):
+#        self.main_axes.set_xlabel('Incoming energy (keV)')
+#        self.main_axes.set_ylabel('Intensity')
+#
+#    def action_cb_sum_click(self, *args, **kwargs):
+#        self.refresh_plot()
+#
+#    def refresh_plot(self):
+#        plot_sum = self.widgets['cb_sum'].value()
+#        if plot_sum:
+#            self.plot_sum()
+#        else:
+#            self.plot_multiple()
+#
+#class XESPlot(PlotWindow):
+#
+#    def __init__(self, *args, **kwargs):
+#        PlotWindow.__init__(self, plot_type='XES', *args, **kwargs)
+#        self.add_widgets()
+#        self.show()
+#        self.plot_multiple()
+#
+#    def add_widgets(self):
+#
+#        # Sum plots checkbox
+#        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
+#        self.widgets['cb_sum'].pack(side=tk.LEFT)
+#        self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
+#
+#        # Pack buttons frame
+#        #self.widgets['frame'].pack()
+#        self.widgets['frame'].grid(row=0, column=0)
+#
+#    def plot_multiple(self):
+#        p = self.parameters
+#        self.main_axes.clear()
+#
+#        # Generate plot lines
+#        rows, columns = self.data.shape
+#        roi_axis = self.roi_axis()
+#
+#        normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
+#        for row_index in range(len(normalized_data)):
+#            label = self.artist_label_prefix() + '- Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']])
+#            self.main_axes.plot(roi_axis, normalized_data[row_index, :], picker=self.picker_tolerance, label=label)
+#
+#        self.plot_redraw()
+#
+#    def plot_sum(self):
+#        p = self.parameters
+#        self.main_axes.clear()
+#
+#        # Generate plot lines
+#        rows, columns = self.data.shape
+#        roi_axis = self.roi_axis()
+#
+#        normalized_data = np.sum(np.divide(self.data[0:rows, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value), axis=0) - self.base_value/self.normalization_value
+#        # Add plot line
+#        self.main_axes.plot(roi_axis, normalized_data, picker=self.picker_tolerance, label='Sum')
+#        self.plot_redraw()
+#
+#    def config_plot_custom(self):
+#        self.main_axes.set_ylabel('Intensity')
+#
+#    def action_cb_sum_click(self, *args, **kwargs):
+#        self.refresh_plot()
+#
+#    def refresh_plot(self):
+#        plot_sum = self.widgets['cb_sum'].value()
+#        if plot_sum:
+#            self.plot_sum()
+#        else:
+#            self.plot_multiple()

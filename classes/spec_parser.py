@@ -8,6 +8,7 @@
 import re
 import os
 from collections import OrderedDict
+import numpy
 
 # Custom classes
 from profiler import *
@@ -28,6 +29,17 @@ class SpecParser:
 
     def get_scans(self):
         return self.scans
+
+    # Function for use over data from 2016-03 at XDS Beamline
+    def mogonio_to_energy(self, mogonio):
+        mogonio = float(mogonio)
+        hc = 1239.8 # nm.eV
+        a = 0.543102 # lattice parameter for Si, in nm 
+        miller_indices = [1, 1, 1]
+        m = miller_indices
+        A = 0
+        B = -0.439
+        return (A + hc * numpy.sqrt(m[0]**2 + m[1]**2 + m[2]**2)/(2*a*numpy.sin(numpy.radians(B + mogonio))))/1000.0
 
     def parse(self):
 
@@ -52,16 +64,18 @@ class SpecParser:
                 if re.search(data_line_regex, line) and not re.search(data_line_regex_other, line):
                     # Headers for the current scans are over, so now we can store them
                     if last_line != 'DATA':
+                        try:
+                            mogonio_index = columns_names.index('mogonio')
+                        except ValueError:
+                            mogonio_index = None
                         self.scans[scan_id_prefix] = {
                             'id': scan_id_prefix,
                             'command': scan_command,
                             'motors_names': motors_names,
                             'motors_positions': motors_positions,
-                            'columns_names': ['row_number', ] + columns_names, # append row_number column
+                            'columns_names': ['row_number', 'calculated_energy'] + columns_names, # append row_number column
                             'exposure_time': exposure_time,
                             'date': scan_date,
-                            'data_dict': list(),
-                            'data_dict_indexed': OrderedDict(),
                             'data_lines': list(),
                             'data_values': list(),
                             'data_values_indexed': OrderedDict(),
@@ -75,11 +89,12 @@ class SpecParser:
 
                         #Ordered dict is too slow!!!!!!
 
-                        #data_dict = OrderedDict(zip(columns_names, columns_values))
-                        #self.scans[scan_id_prefix]['data_dict'].append(data_dict)
-                        #self.scans[scan_id_prefix]['data_dict_indexed'][row_number] = data_dict
-                        self.scans[scan_id_prefix]['data_values'].append([row_number+1, ] + columns_values)
-                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = [row_number+1, ] + columns_values
+                        if mogonio_index is None:
+                            calculated_energy = 0
+                        else:
+                            calculated_energy = self.mogonio_to_energy(columns_values[mogonio_index])
+                        self.scans[scan_id_prefix]['data_values'].append([row_number+1, str(calculated_energy)] + columns_values)
+                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = [row_number+1, str(calculated_energy)] + columns_values
                         self.scans[scan_id_prefix]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
                         row_number += 1
 
