@@ -253,7 +253,7 @@ class Application(ttk.Frame):
         self.file_path = ''
         self.filename = ''
         # Create a new plot window
-        self.desktop_plot = ClipboardPlot(master = self.master, application = self)
+        self.clipboard_plot = None
 
         self.configs = { 's': 'entry_pilatus_signal_columns',
                     'bg1': 'entry_pilatus_bg1_columns',

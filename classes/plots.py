@@ -97,7 +97,7 @@ class PlotWindow(tk.Toplevel):
             # Change some attributes to show the user that the artist is currently selected
             event.artist.set_color('purple')
             event.artist.set_linewidth(3)
-            self.application.log('Selected plot object: ' + event.artist.get_label())
+            self.log('* Selected plot object: ' + event.artist.get_label())
 
         # Redraw changes
         self.fig.canvas.draw()
@@ -116,31 +116,65 @@ class PlotWindow(tk.Toplevel):
 
     def add_default_widgets(self):
 
+        ##########################
+        # Top frame
+        ##########################
+
         # New container for buttons
-        self.widgets['frame'] = ttk.Frame(self)
+        self.widgets['frame_widgets'] = ttk.Frame(self)
 
         # Normalization button
-        self.widgets['btn_normalization'] = ttk.Button(self.widgets['frame'], text='Normalize')
+        self.widgets['btn_normalization'] = ttk.Button(self.widgets['frame_widgets'], text='Normalize')
         self.widgets['btn_normalization']["command"] = self.action_btn_normalization
         self.widgets['btn_normalization'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Export button
-        self.widgets['btn_export'] = ttk.Button(self.widgets['frame'], text='Export data')
+        self.widgets['btn_export'] = ttk.Button(self.widgets['frame_widgets'], text='Export data')
         self.widgets['btn_export']["command"] = self.action_btn_export
         self.widgets['btn_export'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Sum plots checkbox
+        #self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['frame_widgets'], text='Auto refresh')
+        #self.widgets['cb_auto_refresh'].pack(side=tk.LEFT, padx=10, pady=10)
+
+        # Pack buttons frame
+        self.widgets['frame_widgets'].grid(row=0, column=0)
+
+        ##########################
+        # Selection artist widgets
+        ##########################
+
+        # New container for buttons
+        self.widgets['frame_artist_widgets'] = ttk.Frame(self)
+
+        # Pack buttons frame
+        self.widgets['frame_artist_widgets'].grid(row=1, column=0)
+
         # Copy to desktop plot
-        self.widgets['btn_copy'] = ttk.Button(self.widgets['frame'], text='Copy plot')
+        self.widgets['btn_copy'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Copy to clipboard')
         self.widgets['btn_copy']["command"] = self.action_btn_copy
         self.widgets['btn_copy'].pack(side=tk.LEFT, padx=10, pady=5)
 
-        # Sum plots checkbox
-        self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['frame'], text='Auto refresh')
-        self.widgets['cb_auto_refresh'].pack(side=tk.LEFT, padx=10, pady=10)
+        ##########################
+        # Bottom frame
+        ##########################
 
-        # Pack buttons frame
-        #self.widgets['frame'].pack()
-        self.widgets['frame'].grid(row=0, column=0)
+        self.widgets['bottom_frame'] = ttk.Frame(self)
+        #self.widgets['btn_test'] = ttk.Button(self.widgets['bottom_frame'], text='Teste')
+        #self.widgets['btn_test'].grid(row=0, column=0, sticky='nsew')
+        self.widgets['log_listbox'] = ScrollableListbox(self.widgets['bottom_frame'], height=4)
+        self.widgets['log_listbox'].grid(row=0, column=0, sticky='nsew')
+        self.widgets['bottom_frame'].grid(row=3, column=0, sticky="nsew", pady=10, padx=10)
+
+        # Elastic columns
+        tk.Grid.columnconfigure(self.widgets['bottom_frame'], 0, weight=1)
+        tk.Grid.columnconfigure(self, 0, weight=1)
+        tk.Grid.rowconfigure(self, 2, weight=1)
+        tk.Grid.rowconfigure(self, 0, weight=0)
+
+    def log(self, text):
+        self.widgets['log_listbox'].append(text)
+        self.widgets['log_listbox'].see(tk.END)
 
     def default_config(self):
         self.main_axes.get_xaxis().get_major_formatter().set_useOffset(False)
@@ -158,15 +192,18 @@ class PlotWindow(tk.Toplevel):
 
     def action_btn_copy(self, *args, **kwargs):
         if self.application is not None and self.selected_artist is not None:
-            self.application.desktop_plot.main_axes.plot(self.selected_artist['artist'].get_xdata(), self.selected_artist['artist'].get_ydata(), picker=self.picker_tolerance, label=self.selected_artist['artist'].get_label())
-            self.application.desktop_plot.fig.canvas.draw()
+            if self.application.clipboard_plot is None:
+                self.application.clipboard_plot = ClipboardPlot(master = self.application.master, application = self.application)
+            self.application.clipboard_plot.main_axes.plot(self.selected_artist['artist'].get_xdata(), self.selected_artist['artist'].get_ydata(), picker=self.picker_tolerance, label=self.selected_artist['artist'].get_label())
+            self.application.clipboard_plot.fig.canvas.draw()
 
     def action_cb_transferred_click(self, *args, **kwargs):
         self.refresh_plot()
 
     # This functions loops every 10 seconds
     def timer(self):
-        auto_refresh = self.widgets['cb_auto_refresh'].var.get()
+        #auto_refresh = self.widgets['cb_auto_refresh'].var.get()
+        auto_refresh = False
         if auto_refresh:
             self.application.update_current_selected_data()
             self.data = self.application.current_selected_data
@@ -184,14 +221,14 @@ class PlotWindow(tk.Toplevel):
         self.toolbar.update()
         self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.canvas.mpl_connect('pick_event', self.onpick)
-        #self.widgets['canvas_frame'].grid(row=1, column=0)
+        self.widgets['canvas_frame'].grid(row=2, column=0, sticky="nsew", pady=10, padx=10)
 
     def config_plot(self):
         self.default_config()
         # Try to execute custom config from children, if exists
         try:
             self.config_plot_custom()
-        except:
+        except AttributeError: # If method does not exist
             pass
 
     def plot_redraw(self):
@@ -212,6 +249,10 @@ class PlotWindow(tk.Toplevel):
 
     def action_close(self):
         # Custom code when closing plot window
+        try:
+            self.action_close_custom()
+        except AttributeError: # If method does not exist
+            pass
         plt.close(self.fig) 
         self.destroy()
 
@@ -242,7 +283,7 @@ class PlotWindow(tk.Toplevel):
         # Fitting
         calib = Tools.list_to_numpy(p['calibration_data']) 
         equation_parameters = np.polyfit(calib[:, 1], calib[:, 0], min(3, calib.shape[0]-1))
-        self.application.log(str(equation_parameters))
+        self.log('* Energy calibration coefficients: ' + str(equation_parameters))
 
         # Apply fitting equation to ROIs numbers
         energies = np.polyval(equation_parameters, rois_numbers)
@@ -296,23 +337,22 @@ class RXESPlot(PlotWindow):
     def add_widgets(self):
 
         # Normalization button
-        self.widgets['btn_calibration'] = ttk.Button(self.widgets['frame'], text='Calibrate energy')
+        self.widgets['btn_calibration'] = ttk.Button(self.widgets['frame_widgets'], text='Calibrate energy')
         self.widgets['btn_calibration']["command"] = self.action_btn_calibration
         self.widgets['btn_calibration'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Transferred energy RXES checkbox
-        self.widgets['cb_transferred'] = Checkbox(self.widgets['frame'], text='Energy transfer')
+        self.widgets['cb_transferred'] = Checkbox(self.widgets['frame_widgets'], text='Energy transfer')
         self.widgets['cb_transferred'].pack(side=tk.LEFT, padx=10, pady=10)
         self.widgets['cb_transferred'].add_click_action(self.action_cb_transferred_click)
 
         # Profile checkbox
-        self.widgets['btn_profile'] = ttk.Button(self.widgets['frame'], text='Profile center')
+        self.widgets['btn_profile'] = ttk.Button(self.widgets['frame_widgets'], text='Profile center')
         self.widgets['btn_profile']["command"] = self.action_btn_profile
         self.widgets['btn_profile'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Pack buttons frame
-        #self.widgets['frame'].pack()
-        self.widgets['frame'].grid(row=0, column=0)
+        self.widgets['frame_widgets'].grid(row=0, column=0)
 
     def action_btn_calibration(self, *args, **kwargs):
         if not self.calibration_flag:
@@ -495,7 +535,7 @@ class RXESPlot(PlotWindow):
         y_index_max = self.find_closest_in_array(Ymesh[:, y_index_mesh], ylim[1])
         y_index_min, y_index_max = sorted([y_index_min, y_index_max]) # Sort lower and higher indices
         fit = GaussianFit(np.nan_to_num(Ymesh[y_index_min:y_index_max+1, y_index_mesh]), np.nan_to_num(Zmesh[y_index_min:y_index_max+1, y_index_mesh]))
-        self.application.log('* Right axes Gaussian fit FWHM: ' + str(fit.get_fwhm()))
+        self.log('* Right axes Gaussian fit FWHM: ' + str(fit.get_fwhm()))
 
         # Profile at right axes
         if self.right_profile is None:
@@ -516,7 +556,7 @@ class RXESPlot(PlotWindow):
         x_index_max = self.find_closest_in_array(X[x_index, :], xlim[1])
         x_index_min, x_index_max = sorted([x_index_min, x_index_max]) # Sort lower and higher indices
         fit = GaussianFit(X[x_index, x_index_min:x_index_max+1], Z[x_index, x_index_min:x_index_max+1])
-        self.application.log('* Bottom axes Gaussian fit FWHM: ' + str(fit.get_fwhm()))
+        self.log('* Bottom axes Gaussian fit FWHM: ' + str(fit.get_fwhm()))
 
         # Profile at bottom axes
         if self.bottom_profile is None:
@@ -530,6 +570,15 @@ class RXESPlot(PlotWindow):
             self.bottom_profile_scatter.set_ydata(Z[x_index, :])
             self.bottom_profile_fit.set_xdata(X[x_index, x_index_min:x_index_max+1])
             self.bottom_profile_fit.set_ydata(fit.get_fit_y_data())
+
+        label = '<Fig. ' + str(self.figure_number) + '; Profile at x=' + str(X[0, y_index_mesh]) + '>'
+        self.right_profile.set_label(label)
+        label = '<Fig. ' + str(self.figure_number) + '; Gaussian fit at x=' + str(X[0, y_index_mesh]) + '; FWHM = ' + str(fit.get_fwhm()) + '>'
+        self.right_profile_fit.set_label(label)
+        label = '<Fig. ' + str(self.figure_number) + '; Profile at y=' + str(Y[x_index, 0]) + '>'
+        self.bottom_profile.set_label(label)
+        label = '<Fig. ' + str(self.figure_number) + '; Gaussian fit at y=' + str(Y[x_index, 0]) + '; FWHM = ' + str(fit.get_fwhm()) + '>'
+        self.bottom_profile_fit.set_label(label)
 
         # Redraw changes
         self.fig.canvas.draw()
@@ -565,13 +614,12 @@ class HERFDPlot(PlotWindow):
     def add_widgets(self):
 
         # Sum plots checkbox
-        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
+        self.widgets['cb_sum'] = Checkbox(self.widgets['frame_widgets'], text='Sum')
         self.widgets['cb_sum'].pack(side=tk.LEFT, padx=10, pady=10)
         self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
 
         # Pack buttons frame
-        #self.widgets['frame'].pack()
-        self.widgets['frame'].grid(row=0, column=0)
+        self.widgets['frame_widgets'].grid(row=0, column=0)
 
     def plot_multiple(self):
         p = self.parameters
@@ -579,7 +627,7 @@ class HERFDPlot(PlotWindow):
 
         normalized_data = np.divide(self.data[:, p['intensity_columns']], self.normalization_value) - self.base_value/self.normalization_value
         for roi_index in range(len(p['intensity_columns'])):
-            label = 'ROI = ' + p['intensity_names'][roi_index]
+            label = '<Fig. ' + str(self.figure_number) + '; ROI = ' + p['intensity_names'][roi_index] + '>'
             self.main_axes.plot(self.data[:, p['energy_column']], normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
 
         self.plot_redraw()
@@ -591,7 +639,8 @@ class HERFDPlot(PlotWindow):
         normalized_data = np.sum(np.divide(self.data[:, p['intensity_columns']], self.normalization_value), axis=1) - self.base_value/self.normalization_value
 
         # Add plot line of the sum
-        self.main_axes.plot(self.data[:, p['energy_column']], normalized_data, picker=self.picker_tolerance, label='Sum')
+        label = '<Fig. ' + str(self.figure_number) + '; Sum>'
+        self.main_axes.plot(self.data[:, p['energy_column']], normalized_data, picker=self.picker_tolerance, label=label)
         self.plot_redraw()
 
     def config_plot_custom(self):
@@ -619,13 +668,12 @@ class XESPlot(PlotWindow):
     def add_widgets(self):
 
         # Sum plots checkbox
-        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
+        self.widgets['cb_sum'] = Checkbox(self.widgets['frame_widgets'], text='Sum')
         self.widgets['cb_sum'].pack(side=tk.LEFT)
         self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
 
         # Pack buttons frame
-        #self.widgets['frame'].pack()
-        self.widgets['frame'].grid(row=0, column=0)
+        self.widgets['frame_widgets'].grid(row=0, column=0)
 
     def plot_multiple(self):
         p = self.parameters
@@ -637,7 +685,7 @@ class XESPlot(PlotWindow):
 
         normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
         for row_index in range(len(normalized_data)):
-            label = 'Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']])
+            label = '<Fig. ' + str(self.figure_number) + '; Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']]) + '>'
 
             self.main_axes.plot(roi_axis, normalized_data[row_index, :], picker=self.picker_tolerance, label=label)
 
@@ -653,7 +701,8 @@ class XESPlot(PlotWindow):
 
         normalized_data = np.sum(np.divide(self.data[0:rows, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value), axis=0) - self.base_value/self.normalization_value
         # Add plot line
-        self.main_axes.plot(roi_axis, normalized_data, picker=self.picker_tolerance, label='Sum')
+        label = '<Fig. ' + str(self.figure_number) + '; Sum>'
+        self.main_axes.plot(roi_axis, normalized_data, picker=self.picker_tolerance, label=label)
         self.plot_redraw()
 
     def config_plot_custom(self):
@@ -682,19 +731,23 @@ class ClipboardPlot(PlotWindow):
 
     def add_widgets(self):
 
-        # Normalization button
-        self.widgets['btn_delete'] = ttk.Button(self.widgets['frame'], text='Remove plot')
+        # Remove button
+        self.widgets['btn_delete'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Remove plot')
         self.widgets['btn_delete']["command"] = self.action_btn_delete
         self.widgets['btn_delete'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Swap X,Y button
+        self.widgets['btn_swap_xy'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Swap X-Y')
+        self.widgets['btn_swap_xy']["command"] = self.action_btn_swap_xy
+        self.widgets['btn_swap_xy'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Normalization button
-        self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame'], text='Normalize plot')
+        self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Normalize plot')
         self.widgets['btn_normalization_single']["command"] = self.action_btn_normalization_single
         self.widgets['btn_normalization_single'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Pack buttons frame
-        #self.widgets['frame'].pack()
-        self.widgets['frame'].grid(row=0, column=0)
+        self.widgets['frame_widgets'].grid(row=0, column=0)
 
     def action_btn_normalization_single(self, *args, **kwargs):
         if not self.normalization_single_flag:
@@ -727,121 +780,21 @@ class ClipboardPlot(PlotWindow):
     def action_btn_delete(self, *args, **kwargs):
         if self.selected_artist is not None:
             self.main_axes.lines.remove(self.selected_artist['artist'])
+            self.selected_artist = None
             self.fig.canvas.draw()
+
+    def action_btn_swap_xy(self, *args, **kwargs):
+        if self.selected_artist is not None:
+            a = self.selected_artist['artist']
+            x = a.get_xdata()
+            y = a.get_ydata() 
+            a.set_xdata(y)
+            a.set_ydata(x)
+            self.fig.canvas.draw()
+
+    def action_close_custom(self):
+        # Remove reference from deleted clipboard plot
+        self.application.clipboard_plot = None
 
     def config_plot_custom(self):
         pass
-
-#class HERFDPlot(PlotWindow):
-#
-#    def __init__(self, *args, **kwargs):
-#        PlotWindow.__init__(self, plot_type='HERFD', *args, **kwargs)
-#        self.add_widgets()
-#        self.show()
-#        self.plot_multiple()
-#
-#    def add_widgets(self):
-#
-#        # Sum plots checkbox
-#        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
-#        self.widgets['cb_sum'].pack(side=tk.LEFT, padx=10, pady=10)
-#        self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
-#
-#        # Pack buttons frame
-#        #self.widgets['frame'].pack()
-#        self.widgets['frame'].grid(row=0, column=0)
-#
-#    def plot_multiple(self):
-#        p = self.parameters
-#        self.main_axes.clear()
-#
-#        normalized_data = np.divide(self.data[:, p['intensity_columns']], self.normalization_value) - self.base_value/self.normalization_value
-#        for roi_index in range(len(p['intensity_columns'])):
-#            label = 'Fig. ' + str(self.figure_number) + ' - ROI = ' + p['intensity_names'][roi_index]
-#            self.main_axes.plot(self.data[:, p['energy_column']], normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
-#
-#        self.plot_redraw()
-#
-#    def plot_sum(self):
-#        p = self.parameters
-#        self.main_axes.clear()
-#
-#        normalized_data = np.sum(np.divide(self.data[:, p['intensity_columns']], self.normalization_value), axis=1) - self.base_value/self.normalization_value
-#
-#        # Add plot line of the sum
-#        self.main_axes.plot(self.data[:, p['energy_column']], normalized_data, picker=self.picker_tolerance, label='Sum')
-#        self.plot_redraw()
-#
-#    def config_plot_custom(self):
-#        self.main_axes.set_xlabel('Incoming energy (keV)')
-#        self.main_axes.set_ylabel('Intensity')
-#
-#    def action_cb_sum_click(self, *args, **kwargs):
-#        self.refresh_plot()
-#
-#    def refresh_plot(self):
-#        plot_sum = self.widgets['cb_sum'].value()
-#        if plot_sum:
-#            self.plot_sum()
-#        else:
-#            self.plot_multiple()
-#
-#class XESPlot(PlotWindow):
-#
-#    def __init__(self, *args, **kwargs):
-#        PlotWindow.__init__(self, plot_type='XES', *args, **kwargs)
-#        self.add_widgets()
-#        self.show()
-#        self.plot_multiple()
-#
-#    def add_widgets(self):
-#
-#        # Sum plots checkbox
-#        self.widgets['cb_sum'] = Checkbox(self.widgets['frame'], text='Sum')
-#        self.widgets['cb_sum'].pack(side=tk.LEFT)
-#        self.widgets['cb_sum'].add_click_action(self.action_cb_sum_click)
-#
-#        # Pack buttons frame
-#        #self.widgets['frame'].pack()
-#        self.widgets['frame'].grid(row=0, column=0)
-#
-#    def plot_multiple(self):
-#        p = self.parameters
-#        self.main_axes.clear()
-#
-#        # Generate plot lines
-#        rows, columns = self.data.shape
-#        roi_axis = self.roi_axis()
-#
-#        normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
-#        for row_index in range(len(normalized_data)):
-#            label = self.artist_label_prefix() + '- Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']])
-#            self.main_axes.plot(roi_axis, normalized_data[row_index, :], picker=self.picker_tolerance, label=label)
-#
-#        self.plot_redraw()
-#
-#    def plot_sum(self):
-#        p = self.parameters
-#        self.main_axes.clear()
-#
-#        # Generate plot lines
-#        rows, columns = self.data.shape
-#        roi_axis = self.roi_axis()
-#
-#        normalized_data = np.sum(np.divide(self.data[0:rows, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value), axis=0) - self.base_value/self.normalization_value
-#        # Add plot line
-#        self.main_axes.plot(roi_axis, normalized_data, picker=self.picker_tolerance, label='Sum')
-#        self.plot_redraw()
-#
-#    def config_plot_custom(self):
-#        self.main_axes.set_ylabel('Intensity')
-#
-#    def action_cb_sum_click(self, *args, **kwargs):
-#        self.refresh_plot()
-#
-#    def refresh_plot(self):
-#        plot_sum = self.widgets['cb_sum'].value()
-#        if plot_sum:
-#            self.plot_sum()
-#        else:
-#            self.plot_multiple()
