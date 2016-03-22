@@ -71,6 +71,23 @@ class PlotWindow(tk.Toplevel):
     def artist_label_prefix(self):
         return 'Fig. ' + str(self.figure_number)
 
+    def find_closest_in_array(self, X, x0):
+            # Find x position in array X
+            x_pos = 0
+            x_index = -1
+            for x in X:
+                if x_pos > 0:
+                    if abs(x-x0) >= last_diff:
+                        x_index = x_pos-1
+                        break
+                last_diff = abs(x-x0) 
+                x_pos += 1
+            # It max be the last item of the array
+            if x_index == -1:
+                x_index = x_pos-1
+            return x_index
+
+
     def onpick(self, event):
 
         xy = [ event.mouseevent.x, event.mouseevent.y ]
@@ -513,22 +530,6 @@ class RXESPlot(PlotWindow):
         self.fig.colorbar(cs, orientation="vertical", label="Intensity (a.u.)", ticks=np.linspace(0,1,11), cax=self.colorbar_axes)
         self.plot_redraw()
 
-    def find_closest_in_array(self, X, x0):
-            # Find x position in array X
-            x_pos = 0
-            x_index = -1
-            for x in X:
-                if x_pos > 0:
-                    if abs(x-x0) >= last_diff:
-                        x_index = x_pos-1
-                        break
-                last_diff = abs(x-x0) 
-                x_pos += 1
-            # It max be the last item of the array
-            if x_index == -1:
-                x_index = x_pos-1
-            return x_index
-
     def plot_profiles(self, X, Y, Z, Xmesh=None, Ymesh=None, Zmesh=None, profile_x=None, profile_y=None):
 
         # Getting profile center position
@@ -766,6 +767,11 @@ class ClipboardPlot(PlotWindow):
         self.widgets['btn_swap_xy']["command"] = self.action_btn_swap_xy
         self.widgets['btn_swap_xy'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Guassian fit button
+        self.widgets['btn_gaussfit'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Gaussian fit')
+        self.widgets['btn_gaussfit']["command"] = self.action_btn_gaussfit
+        self.widgets['btn_gaussfit'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Normalization button
         self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Normalize plot')
         self.widgets['btn_normalization_single']["command"] = self.action_btn_normalization_single
@@ -815,6 +821,22 @@ class ClipboardPlot(PlotWindow):
             y = a.get_ydata() 
             a.set_xdata(y)
             a.set_ydata(x)
+            self.fig.canvas.draw()
+
+    def action_btn_gaussfit(self, *args, **kwargs):
+        if self.selected_artist is not None:
+            a = self.selected_artist['artist']
+            xlim = self.main_axes.get_xlim()
+            X = np.array(a.get_xdata()).astype('float')
+            Z = np.array(a.get_ydata()).astype('float')
+            x_index_min = self.find_closest_in_array(X, xlim[0])
+            x_index_max = self.find_closest_in_array(X, xlim[1])
+            x_index_min, x_index_max = sorted([x_index_min, x_index_max]) # Sort lower and higher indices
+            fit = GaussianFit(X[x_index_min:x_index_max+1], Z[x_index_min:x_index_max+1])
+            self.log('* Gaussian fit w/ FWHM=' + str(fit.get_fwhm()) + ' for ' + str(a.get_label()))
+            fitplot = self.main_axes.plot(X[x_index_min:x_index_max+1], fit.get_fit_y_data(), '--', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            label = '<Gaussian fit w/ FWHM=' + str(fit.get_fwhm()) + ' for ' + a.get_label() + '>'
+            fitplot.set_label(label)
             self.fig.canvas.draw()
 
     def action_close_custom(self):
