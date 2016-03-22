@@ -128,6 +128,11 @@ class PlotWindow(tk.Toplevel):
         self.widgets['btn_normalization']["command"] = self.action_btn_normalization
         self.widgets['btn_normalization'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Zoom all button
+        self.widgets['btn_zoomall'] = ttk.Button(self.widgets['frame_widgets'], text='Zoom all')
+        self.widgets['btn_zoomall']["command"] = self.action_btn_zoomall
+        self.widgets['btn_zoomall'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Export button
         self.widgets['btn_export'] = ttk.Button(self.widgets['frame_widgets'], text='Export data')
         self.widgets['btn_export']["command"] = self.action_btn_export
@@ -289,6 +294,26 @@ class PlotWindow(tk.Toplevel):
         energies = np.polyval(equation_parameters, rois_numbers)
 
         return energies
+
+    def action_btn_zoomall(self, *args, **kwargs):
+        first = True
+        for line in self.main_axes.lines:
+            if first:
+                min_x = min(line.get_xdata()) 
+                max_x = max(line.get_xdata()) 
+                min_y = min(line.get_ydata()) 
+                max_y = max(line.get_ydata()) 
+                first = False
+            else:
+                min_x = min(min_x, min(line.get_xdata()))
+                max_x = max(max_x, max(line.get_xdata()))
+                min_y = min(min_y, min(line.get_ydata()))
+                max_y = max(max_y, max(line.get_ydata()))
+        if not first: # If there is at least 1 line
+            self.main_axes.set_xlim([min_x, max_x])
+            self.main_axes.set_ylim([min_y, max_y])
+            # Redraw changes
+            self.fig.canvas.draw()
 
     def action_btn_normalization(self, *args, **kwargs):
         if not self.normalization_flag:
