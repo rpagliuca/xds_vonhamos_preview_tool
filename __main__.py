@@ -149,11 +149,19 @@ class Application(ttk.Frame):
         self.widgets['scans_listbox'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew")
         self.widgets['scans_listbox'].bind('<<ListboxSelect>>', self.action_scans_listbox_select)
 
-        # Calibration Label
+        # Calibration Checkbox
         row += rowspan
         rowspan = 1
-        self.widgets['cb_calib'] = Checkbox(self, text='Use calibration')
-        self.widgets['cb_calib'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew", pady=(10, 0))
+        self.widgets['calib_frame'] = ttk.Frame(self)
+        self.widgets['cb_calib'] = Checkbox(self.widgets['calib_frame'], text='Use calibration')
+        self.widgets['cb_calib'].pack(side=tk.LEFT, padx=0, pady=0)
+
+        # Calibration Preview BUtton
+        self.widgets['btn_calib_preview'] = ttk.Button(self.widgets['calib_frame'])
+        self.widgets['btn_calib_preview']["text"] = "Plot calib. fit"
+        self.widgets['btn_calib_preview']["command"] = self.action_calib_preview
+        self.widgets['btn_calib_preview'].pack(side=tk.LEFT, padx=10, pady=0)
+        self.widgets['calib_frame'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew", pady=(2, 2))
 
         # Calibration listbox
         row += rowspan
@@ -554,6 +562,14 @@ class Application(ttk.Frame):
         parameters = self.get_plot_parameters_and_validate(data)
         self.current_selected_data = nparray 
         self.current_parameters = parameters
+
+    def action_calib_preview(self, *args, **kwargs):
+        # Prepare data
+        data = self.get_selected_data()
+        nparray = Tools.list_to_numpy(data)
+        parameters = self.get_plot_parameters_and_validate(data)
+        # Create new plot window
+        plot = CalibrationPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
 
     def plot_rxes(self, data):
 

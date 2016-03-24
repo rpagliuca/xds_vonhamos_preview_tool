@@ -141,9 +141,8 @@ class PlotWindow(tk.Toplevel):
         self.widgets['frame_widgets'] = ttk.Frame(self)
 
         # Normalization button
-        self.widgets['btn_normalization'] = ttk.Button(self.widgets['frame_widgets'], text='Normalize')
+        self.widgets['btn_normalization'] = ttk.Button(self.widgets['frame_widgets'], text='Normalize y-axis')
         self.widgets['btn_normalization']["command"] = self.action_btn_normalization
-        self.widgets['btn_normalization'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Zoom all button
         self.widgets['btn_zoomall'] = ttk.Button(self.widgets['frame_widgets'], text='Zoom all')
@@ -177,6 +176,11 @@ class PlotWindow(tk.Toplevel):
         self.widgets['btn_copy']["command"] = self.action_btn_copy
         self.widgets['btn_copy'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Zoom line button
+        self.widgets['btn_zoomsingle'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Zoom line')
+        self.widgets['btn_zoomsingle']["command"] = self.action_btn_zoomsingle
+        self.widgets['btn_zoomsingle'].pack(side=tk.LEFT, padx=10, pady=5)
+
         ##########################
         # Bottom frame
         ##########################
@@ -202,6 +206,19 @@ class PlotWindow(tk.Toplevel):
         self.main_axes.get_xaxis().get_major_formatter().set_useOffset(False)
         self.main_axes.get_yaxis().get_major_formatter().set_useOffset(False)
         self.fig.set_tight_layout(True)
+
+    def action_btn_zoomsingle(self, *args, **kwargs):
+        if self.selected_artist is not None:
+            line = self.selected_artist['artist']
+            min_x = min(line.get_xdata())
+            max_x = max(line.get_xdata())
+            min_y = min(line.get_ydata())
+            max_y = max(line.get_ydata())
+            self.main_axes.set_xlim([min_x, max_x])
+            self.main_axes.set_ylim([min_y, max_y])
+            # Redraw changes
+            self.fig.canvas.draw()
+
 
     def action_btn_export(self, *args, **kwargs):
         file_path = fd.asksaveasfilename()
@@ -338,7 +355,7 @@ class PlotWindow(tk.Toplevel):
             self.widgets['btn_normalization']['text'] = 'Please double-click on y=0...'
             self.normalization_connection = self.canvas.mpl_connect('button_press_event', self.action_normalization_firstclick)
         else:
-            self.widgets['btn_normalization']['text'] = 'Normalize'
+            self.widgets['btn_normalization']['text'] = 'Normalize y-axis'
             self.normalization_flag = False
             self.canvas.mpl_disconnect(self.normalization_connection)
 
@@ -378,7 +395,7 @@ class RXESPlot(PlotWindow):
 
     def add_widgets(self):
 
-        # Normalization button
+        # Calibration button
         self.widgets['btn_calibration'] = ttk.Button(self.widgets['frame_widgets'], text='Calibrate energy')
         self.widgets['btn_calibration']["command"] = self.action_btn_calibration
         self.widgets['btn_calibration'].pack(side=tk.LEFT, padx=10, pady=5)
@@ -639,6 +656,9 @@ class HERFDPlot(PlotWindow):
 
     def add_widgets(self):
 
+        # Normalization button
+        self.widgets['btn_normalization'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Sum plots checkbox
         self.widgets['cb_sum'] = Checkbox(self.widgets['frame_widgets'], text='Sum')
         self.widgets['cb_sum'].pack(side=tk.LEFT, padx=10, pady=10)
@@ -693,6 +713,9 @@ class XESPlot(PlotWindow):
 
     def add_widgets(self):
 
+        # Normalization button
+        self.widgets['btn_normalization'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Sum plots checkbox
         self.widgets['cb_sum'] = Checkbox(self.widgets['frame_widgets'], text='Sum')
         self.widgets['cb_sum'].pack(side=tk.LEFT)
@@ -744,6 +767,26 @@ class XESPlot(PlotWindow):
         else:
             self.plot_multiple()
 
+class CalibrationPlot(PlotWindow):
+
+    def __init__(self, *args, **kwargs):
+        # Inheritance
+        PlotWindow.__init__(self, plot_type='Clipboard', *args, **kwargs)
+        self.show()
+        self.plot()
+
+    def plot(self):
+        p = self.parameters
+        rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
+        label='Calibration line'
+        self.main_axes.plot(rois_numbers, self.rois_to_energies(), picker=self.picker_tolerance, label=label)
+        rois = list()
+        energies = list()
+        for calib in p['calibration_data']:
+            rois.append(float(calib['roi']))
+            energies.append(float(calib['energy']))
+        self.main_axes.plot(rois, energies, 'o')
+
 class ClipboardPlot(PlotWindow):
 
     def __init__(self, *args, **kwargs):
@@ -758,7 +801,7 @@ class ClipboardPlot(PlotWindow):
     def add_widgets(self):
 
         # Remove button
-        self.widgets['btn_delete'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Remove plot')
+        self.widgets['btn_delete'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Remove line')
         self.widgets['btn_delete']["command"] = self.action_btn_delete
         self.widgets['btn_delete'].pack(side=tk.LEFT, padx=10, pady=5)
 
@@ -773,7 +816,7 @@ class ClipboardPlot(PlotWindow):
         self.widgets['btn_gaussfit'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Normalization button
-        self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Normalize plot')
+        self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Normalize line')
         self.widgets['btn_normalization_single']["command"] = self.action_btn_normalization_single
         self.widgets['btn_normalization_single'].pack(side=tk.LEFT, padx=10, pady=5)
 
@@ -786,7 +829,7 @@ class ClipboardPlot(PlotWindow):
             self.widgets['btn_normalization_single']['text'] = 'Please double-click on y=0...'
             self.normalization_single_connection = self.canvas.mpl_connect('button_press_event', self.action_normalization_single_firstclick)
         else:
-            self.widgets['btn_normalization_single']['text'] = 'Normalize plot'
+            self.widgets['btn_normalization_single']['text'] = 'Normalize line'
             self.normalization_single_flag = False
             self.canvas.mpl_disconnect(self.normalization_single_connection)
 
