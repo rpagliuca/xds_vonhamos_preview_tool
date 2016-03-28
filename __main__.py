@@ -413,8 +413,13 @@ class Application(ttk.Frame):
 
     def get_selected_data(self):
 
+        self.profiler.start('get_selected_data')
+
         indices = self.widgets['data_table'].get_selectedRecordNames()
-        data = copy.deepcopy(self.widgets['data_table'].getModel().data)
+        data = self.widgets['data_table'].getModel().data
+        # At first I was using deepcopy to avoid messing up with the original data,
+        # but it was too slow, and I don't think it is needed anymore
+        # data = copy.deepcopy(self.widgets['data_table'].getModel().data)
         p = self.get_plot_parameters_and_validate(data)
         error = False
 
@@ -481,7 +486,11 @@ class Application(ttk.Frame):
             formula = formula.replace('I0', 'selected_data[:, ' + str(p['i0_column']) + '].reshape(' + str(len(selected_data)) + ', 1).astype("float")')
 
         intensity_values = eval(formula)
+        self.profiler.start('column_stack')
         selected_data = np.column_stack((selected_data, intensity_values))
+        self.profiler.stop_and_print('column_stack')
+
+        self.profiler.stop_and_print('get_selected_data')
 
         return selected_data
 
@@ -515,8 +524,10 @@ class Application(ttk.Frame):
             self.debug_log('Error writing ' + self.file_config_ini_file)
 
     def action_xes(self):
+        self.profiler.start('action_xes')
         self.save_project_config()
         self.plot_xes(self.get_selected_data())
+        self.profiler.stop_and_print('action_xes')
 
     def action_rxes(self):
         self.save_project_config()

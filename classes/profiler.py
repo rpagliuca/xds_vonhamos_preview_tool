@@ -10,6 +10,13 @@ class Profiler:
 
     def __init__(self, *args, **kwargs):
         self.profiler_stats = { 'start': dict(), 'total': dict(), 'state': dict() }
+        self.output_enabled = True
+
+    def disable_output(self):
+        self.output_enabled = False
+
+    def enable_output(self):
+        self.output_enabled = True
 
     def start(self, alias):
         self.state = 'running'
@@ -22,17 +29,20 @@ class Profiler:
             self.profiler_stats['total'][alias] += time.clock() - self.profiler_stats['start'][alias]
             self.profiler_stats['state'][alias] = 'suspended'
         else:
-            print 'Profiler <' + str(alias) + '> not running, cannot suspend.'
+            if self.output_enabled:
+                print 'Profiler <' + str(alias) + '> not running, cannot suspend.'
 
     def resume(self, alias):
         if self.profiler_stats['state'][alias] == 'suspended':
             self.profiler_stats['state'][alias] = 'running'
             self.profiler_stats['start'][alias] = time.clock()
         else:
-            print 'Profiler <' + str(alias) + '> not suspended, cannot resume.'
+            if self.output_enabled:
+                print 'Profiler <' + str(alias) + '> not suspended, cannot resume.'
 
     def print_total(self, alias):
-        print 'profiler_stats[total][' + str(alias) + '] = ' + str(self.profiler_stats['total'][alias])
+        if self.output_enabled:
+            print 'profiler_stats[total][' + str(alias) + '] = ' + str(self.profiler_stats['total'][alias])
 
     def stop_and_print(self, alias):
         self.stop(alias)
