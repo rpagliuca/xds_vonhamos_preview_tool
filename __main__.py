@@ -477,6 +477,8 @@ class Application(ttk.Frame):
             formula = formula.replace('BG1', 'selected_data[:, [' + ', '.join(map(str, rois_bg1_cols))  + ']].astype("float")')
         if formula_contains_BG2:
             formula = formula.replace('BG2', 'selected_data[:, [' + ', '.join(map(str, rois_bg2_cols))  + ']].astype("float")')
+        if formula_contains_I0:
+            formula = formula.replace('I0', 'selected_data[:, ' + str(p['i0_column']) + '].reshape(' + str(len(selected_data)) + ', 1).astype("float")')
 
         intensity_values = eval(formula)
         selected_data = np.column_stack((selected_data, intensity_values))
