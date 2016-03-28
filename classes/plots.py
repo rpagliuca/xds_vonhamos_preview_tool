@@ -52,10 +52,13 @@ class PlotWindow(tk.Toplevel):
         tk.Toplevel.__init__(self, master=self.master)
 
         # Set window title
-        if figure_number is not None:
-            self.title('Figure %.0f - %s - %s' % (figure_number, plot_type, (self.application.filename))) 
-        else:
+        if plot_type == 'Clipboard':
             self.title('Clipboard') 
+        elif plot_type == 'Calibration':
+            self.title('Calibration Fit Curve') 
+        else:
+            if figure_number is not None:
+                self.title('Figure %.0f - %s - %s' % (figure_number, plot_type, (self.application.filename))) 
 
         self.protocol("WM_DELETE_WINDOW", self.action_close)
         self.fig = Figure()
@@ -177,7 +180,7 @@ class PlotWindow(tk.Toplevel):
         self.widgets['btn_copy'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Zoom line button
-        self.widgets['btn_zoomsingle'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Zoom line')
+        self.widgets['btn_zoomsingle'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Zoom curve')
         self.widgets['btn_zoomsingle']["command"] = self.action_btn_zoomsingle
         self.widgets['btn_zoomsingle'].pack(side=tk.LEFT, padx=10, pady=5)
 
@@ -321,7 +324,7 @@ class PlotWindow(tk.Toplevel):
 
         # Fitting
         calib = Tools.list_to_numpy(p['calibration_data']) 
-        equation_parameters = np.polyfit(calib[:, 1], calib[:, 0], min(3, calib.shape[0]-1))
+        equation_parameters = np.polyfit(calib[:, 1], calib[:, 0], min(2, calib.shape[0]-1))
         self.log('* Energy calibration coefficients: ' + str(equation_parameters))
 
         # Apply fitting equation to ROIs numbers
@@ -614,9 +617,9 @@ class RXESPlot(PlotWindow):
             self.bottom_profile_fit.set_xdata(X[x_index, x_index_min:x_index_max+1])
             self.bottom_profile_fit.set_ydata(fit.get_fit_y_data())
 
-        label = '<Fig. ' + str(self.figure_number) + '; Profile at x=' + str(X[0, y_index_mesh]) + '>'
+        label = '<Fig. ' + str(self.figure_number) + '; Profile at x=' + str(Xmesh[0, y_index_mesh]) + '>'
         self.right_profile.set_label(label)
-        label = '<Fig. ' + str(self.figure_number) + '; Gaussian fit at x=' + str(X[0, y_index_mesh]) + '; FWHM = ' + str(fit.get_fwhm()) + '>'
+        label = '<Fig. ' + str(self.figure_number) + '; Gaussian fit at x=' + str(Xmesh[0, y_index_mesh]) + '; FWHM = ' + str(fit.get_fwhm()) + '>'
         self.right_profile_fit.set_label(label)
         label = '<Fig. ' + str(self.figure_number) + '; Profile at y=' + str(Y[x_index, 0]) + '>'
         self.bottom_profile.set_label(label)
@@ -771,14 +774,14 @@ class CalibrationPlot(PlotWindow):
 
     def __init__(self, *args, **kwargs):
         # Inheritance
-        PlotWindow.__init__(self, plot_type='Clipboard', *args, **kwargs)
+        PlotWindow.__init__(self, plot_type='Calibration', *args, **kwargs)
         self.show()
         self.plot()
 
     def plot(self):
         p = self.parameters
         rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
-        label='Calibration line'
+        label='<Calibration fit curve>'
         self.main_axes.plot(rois_numbers, self.rois_to_energies(), picker=self.picker_tolerance, label=label)
         rois = list()
         energies = list()
@@ -801,7 +804,7 @@ class ClipboardPlot(PlotWindow):
     def add_widgets(self):
 
         # Remove button
-        self.widgets['btn_delete'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Remove line')
+        self.widgets['btn_delete'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Remove curve')
         self.widgets['btn_delete']["command"] = self.action_btn_delete
         self.widgets['btn_delete'].pack(side=tk.LEFT, padx=10, pady=5)
 
@@ -816,7 +819,7 @@ class ClipboardPlot(PlotWindow):
         self.widgets['btn_gaussfit'].pack(side=tk.LEFT, padx=10, pady=5)
 
         # Normalization button
-        self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Normalize line')
+        self.widgets['btn_normalization_single'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Normalize curve')
         self.widgets['btn_normalization_single']["command"] = self.action_btn_normalization_single
         self.widgets['btn_normalization_single'].pack(side=tk.LEFT, padx=10, pady=5)
 
@@ -829,7 +832,7 @@ class ClipboardPlot(PlotWindow):
             self.widgets['btn_normalization_single']['text'] = 'Please double-click on y=0...'
             self.normalization_single_connection = self.canvas.mpl_connect('button_press_event', self.action_normalization_single_firstclick)
         else:
-            self.widgets['btn_normalization_single']['text'] = 'Normalize line'
+            self.widgets['btn_normalization_single']['text'] = 'Normalize curve'
             self.normalization_single_flag = False
             self.canvas.mpl_disconnect(self.normalization_single_connection)
 

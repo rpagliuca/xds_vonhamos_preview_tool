@@ -424,6 +424,12 @@ class Application(ttk.Frame):
                     'I0': 'i0_column'
                  }
 
+        formula_contains_S = self.formula_contains_variable('S')
+        formula_contains_BG1 = self.formula_contains_variable('BG1')
+        formula_contains_BG2 = self.formula_contains_variable('BG2')
+        formula_contains_I0 = self.formula_contains_variable('I0')
+
+
         for key in fields:
             # Fields with False or [] contents should throw errors if on formula
             if (self.formula_contains_variable(key)
@@ -431,13 +437,13 @@ class Application(ttk.Frame):
                or (not isinstance(p[fields[key]], (bool, int)) and len(p[fields[key]]) == 0))):
                 error = '* Error: Formula contains ' + key + ', but no column matched the user-defined filter'
 
-        if (self.formula_contains_variable('S') and self.formula_contains_variable('BG1') and len(p['rois_signal_columns']) != len(p['rois_bg1_columns'])):
+        if (formula_contains_S and formula_contains_BG1 and len(p['rois_signal_columns']) != len(p['rois_bg1_columns'])):
             error = '* Error: Formula contains both S and BG1, but the number of columns differ'
             
-        if (self.formula_contains_variable('S') and self.formula_contains_variable('BG2') and len(p['rois_signal_columns']) != len(p['rois_bg2_columns'])):
+        if (formula_contains_S and formula_contains_BG2 and len(p['rois_signal_columns']) != len(p['rois_bg2_columns'])):
             error = '* Error: Formula contains both S and BG2, but the number of columns differ'
 
-        if (self.formula_contains_variable('BG1') and self.formula_contains_variable('BG2') and len(p['rois_bg1_columns']) != len(p['rois_bg2_columns'])):
+        if (formula_contains_BG1 and formula_contains_BG2 and len(p['rois_bg1_columns']) != len(p['rois_bg2_columns'])):
             error = '* Error: Formula contains both BG1 and BG2, but the number of columns differ'
 
         if error:
@@ -446,44 +452,34 @@ class Application(ttk.Frame):
 
         selected_data = list()
         
-        rois_signal_names = []
-        rois_bg1_names = []
-        rois_bg2_names = []
+        rois_signal_cols = []
+        rois_bg1_cols = []
+        rois_bg2_cols = []
 
-        if self.formula_contains_variable('S'):
-            rois_signal_names = p['rois_signal_columns']
+        if formula_contains_S:
+            rois_signal_cols = p['rois_signal_columns']
 
-        if self.formula_contains_variable('BG1'):
-            rois_bg1_names = p['rois_bg1_columns']
+        if formula_contains_BG1:
+            rois_bg1_cols = p['rois_bg1_columns']
         
-        if self.formula_contains_variable('BG2'):
-            rois_bg2_names = p['rois_bg2_columns']
+        if formula_contains_BG2:
+            rois_bg2_cols = p['rois_bg2_columns']
 
         for row in indices:
             if row in data:
-                col_num = 1
-                rois_names = itertools.izip_longest(rois_signal_names, rois_bg1_names, rois_bg2_names)
-                formula_contains_S = self.formula_contains_variable('S')
-                formula_contains_BG1 = self.formula_contains_variable('BG1')
-                formula_contains_BG2 = self.formula_contains_variable('BG2')
-                formula_contains_I0 = self.formula_contains_variable('I0')
-                for signal_column, bg1_column, bg2_column in rois_names:
-                    formula = p['rois_formula'] 
-                    # Replace variables on Intensity Formula by actual values
-                    if formula_contains_S:
-                        formula = formula.replace('S', data[row][signal_column])
-                    if formula_contains_BG1:
-                        formula = formula.replace('BG1', data[row][bg1_column])
-                    if formula_contains_BG2:
-                        formula = formula.replace('BG2', data[row][bg2_column])
-                    if formula_contains_I0:
-                        formula = formula.replace('I0', data[row][p['i0_column']])
-                    intensity = eval(formula) 
-                    # Store calculated intensities on columns intensity_0, intensity_1 etc
-                    data[row].append(intensity)
-                    col_num += 1 
                 selected_data.append(data[row])
+        selected_data = np.array(selected_data)
 
+        formula = p['rois_formula'] 
+        if formula_contains_S:
+            formula = formula.replace('S', 'selected_data[:, [' + ', '.join(map(str, rois_signal_cols))  + ']].astype("float")')
+        if formula_contains_BG1:
+            formula = formula.replace('BG1', 'selected_data[:, [' + ', '.join(map(str, rois_bg1_cols))  + ']].astype("float")')
+        if formula_contains_BG2:
+            formula = formula.replace('BG2', 'selected_data[:, [' + ', '.join(map(str, rois_bg2_cols))  + ']].astype("float")')
+
+        intensity_values = eval(formula)
+        selected_data = np.column_stack((selected_data, intensity_values))
 
         return selected_data
 
@@ -536,7 +532,7 @@ class Application(ttk.Frame):
 
         # Prepare numpy array
         parameters = self.get_plot_parameters_and_validate(data)
-        nparray = Tools.list_to_numpy(data)
+        nparray = Tools.mixed_array_to_float(data)
 
         # Create a new plot window
         plot = XESPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
@@ -548,7 +544,7 @@ class Application(ttk.Frame):
         self.log('* Figure %.0f' % self.figure_number) 
 
         # Prepare numpy array
-        nparray = Tools.list_to_numpy(data)
+        nparray = Tools.mixed_array_to_float(data)
 
         # Create a new plot window
         parameters = self.get_plot_parameters_and_validate(data)
@@ -557,7 +553,7 @@ class Application(ttk.Frame):
     def update_current_selected_data(self):
         # Prepare data
         data = self.get_selected_data()
-        nparray = Tools.list_to_numpy(data)
+        nparray = Tools.mixed_array_to_float(data)
         # Create new plot window
         parameters = self.get_plot_parameters_and_validate(data)
         self.current_selected_data = nparray 
@@ -566,7 +562,7 @@ class Application(ttk.Frame):
     def action_calib_preview(self, *args, **kwargs):
         # Prepare data
         data = self.get_selected_data()
-        nparray = Tools.list_to_numpy(data)
+        nparray = Tools.mixed_array_to_float(data)
         parameters = self.get_plot_parameters_and_validate(data)
         # Create new plot window
         plot = CalibrationPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
@@ -578,7 +574,7 @@ class Application(ttk.Frame):
         self.log('* Figure %.0f' % self.figure_number) 
 
         # Prepare data
-        nparray = Tools.list_to_numpy(data)
+        nparray = Tools.mixed_array_to_float(data)
         parameters = self.get_plot_parameters_and_validate(data)
 
         # Create new plot window

@@ -168,7 +168,7 @@ class Preferences:
         # Load prefs
         #
         self.pref_file=filename
-        print "loading prefs from ",self.pref_file
+        #print "loading prefs from ",self.pref_file
         import pickle
         try:
             fd=open(filename)

@@ -203,7 +203,8 @@ class TableModel(object):
             celldata=self.data[name][columnIndex]
             return celldata
         except:
-            print 'Error at getCellRecord(' + str(rowIndex) + ', ' + str(columnIndex) + ')'
+            #print 'Error at getCellRecord(' + str(rowIndex) + ', ' + str(columnIndex) + ')'
+            pass
         return None
 
     def deleteCellRecord(self, rowIndex, columnIndex):
