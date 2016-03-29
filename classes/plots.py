@@ -275,9 +275,7 @@ class PlotWindow(tk.Toplevel):
 
     def plot_redraw(self):
         self.config_plot()
-        self.profiler.start('fig.canvas.draw')
         self.fig.canvas.draw()
-        self.profiler.stop_and_print('fig.canvas.draw')
 
     def columns_names_parse_as_int(self, columns_names):
         return_list = list()
@@ -397,9 +395,7 @@ class RXESPlot(PlotWindow):
         self.add_widgets()
         self.show()
 
-        self.profiler.start('plot_emitted')
         self.plot_emitted()
-        self.profiler.stop_and_print('plot_emitted')
 
     def add_widgets(self):
 
@@ -541,15 +537,11 @@ class RXESPlot(PlotWindow):
     def plot_emitted(self):
 
         # Plot Data
-        self.profiler.start('update_plot_data')
         self.update_plot_data('emitted') 
-        self.profiler.stop_and_print('update_plot_data')
         X, Y, Z, Xmesh, Ymesh, Zmesh = self.plot_data
 
         # Colormap
-        self.profiler.start('contourf')
         cs = self.main_axes.contourf(X, Y, Z, 50, stride=1, picker=self.picker_tolerance)
-        self.profiler.stop_and_print('contourf')
 
         # Profiles
         self.plot_profiles(X, Y, Z, Xmesh, Ymesh, Zmesh)
@@ -557,9 +549,7 @@ class RXESPlot(PlotWindow):
         
         # BUG ALERT! When I tried using pyplot.colorbar instead of self.fig.colorbar below, TkInterTable stopped working with weird errors ("wrong screen size", etc.)
         self.fig.colorbar(cs, orientation="vertical", label="Intensity (a.u.)", ticks=np.linspace(0,1,11), cax=self.colorbar_axes)
-        self.profiler.start('plot_redraw')
         self.plot_redraw()
-        self.profiler.stop_and_print('plot_redraw')
 
     def plot_profiles(self, X, Y, Z, Xmesh=None, Ymesh=None, Zmesh=None, profile_x=None, profile_y=None):
 
@@ -687,15 +677,11 @@ class HERFDPlot(PlotWindow):
 
         normalized_data = np.divide(self.data[:, p['intensity_columns']], self.normalization_value) - self.base_value/self.normalization_value
         
-        self.profiler.start('plot-multiple')
         for roi_index in range(len(p['intensity_columns'])):
             label = '<Fig. ' + str(self.figure_number) + '; ROI = ' + p['intensity_names'][roi_index] + '>'
             self.main_axes.plot(self.data[:, p['energy_column']], normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
-        self.profiler.stop_and_print('plot-multiple')
 
-        self.profiler.start('plot-multiple-redraw')
         self.plot_redraw()
-        self.profiler.stop_and_print('plot-multiple-redraw')
 
     def plot_sum(self):
         p = self.parameters
@@ -725,20 +711,10 @@ class HERFDPlot(PlotWindow):
 class XESPlot(PlotWindow):
 
     def __init__(self, *args, **kwargs):
-
         PlotWindow.__init__(self, plot_type='XES', *args, **kwargs)
-
-        self.profiler.start('add_widgets')
         self.add_widgets()
-        self.profiler.stop_and_print('add_widgets')
-
-        self.profiler.start('show')
         self.show()
-        self.profiler.stop_and_print('show')
-
-        self.profiler.start('plot_multiple')
         self.plot_multiple()
-        self.profiler.stop_and_print('plot_multiple')
 
     def add_widgets(self):
 
@@ -763,12 +739,10 @@ class XESPlot(PlotWindow):
 
         normalized_data = np.divide(self.data[:, min(p['intensity_columns']):max(p['intensity_columns'])+1], self.normalization_value) - self.base_value/self.normalization_value
 
-        self.profiler.start('plot_multiple-loop')
         for row_index in range(len(normalized_data)):
             label = '<Fig. ' + str(self.figure_number) + '; Row = ' + str(self.data[row_index, p['row_number_column']]) + '; Energy = ' + str(self.data[row_index, p['energy_column']]) + '>'
 
             self.main_axes.plot(roi_axis, normalized_data[row_index, :], picker=self.picker_tolerance, label=label)
-        self.profiler.stop_and_print('plot_multiple-loop')
 
         self.plot_redraw()
 
