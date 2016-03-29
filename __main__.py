@@ -39,11 +39,12 @@ import pandas
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import ConfigParser
+#import ConfigParser
 import random, string
 import itertools
 import copy
 import time
+import codecs
 # Custom classes
 from classes.spec_parser import *
 from classes.custom_widgets import *
@@ -54,6 +55,7 @@ from classes.profiler import *
 import lib.tkintertable
 import lib.tkintertable.TableModels
 import lib.tkintertable.Tables
+import lib.configparser
 
 class Application(ttk.Frame):
 
@@ -177,10 +179,13 @@ class Application(ttk.Frame):
         self.widgets['calib_tree'].grid(row=row, column=0, sticky="nsew")
 
         # Data points listbox
-        row = 0 # New column
+        # New column
+        column = 1
+        row = 0
         rowspan = row_expandable+1
+        colspan = 2
         self.widgets['data_frame'] = ttk.Frame(self)
-        self.widgets['data_frame'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", padx=(10, 0))
+        self.widgets['data_frame'].grid(row=row, column=column, rowspan=rowspan, columnspan=colspan, sticky="nsew", padx=(10, 0))
 
         # Empty initial data table
         self.scan_data_model = lib.tkintertable.TableModels.TableModel()
@@ -194,9 +199,10 @@ class Application(ttk.Frame):
 
         # Headers label
         row += rowspan
+        row_scan_header = row
         rowspan = 1
         self.widgets['label_headers'] = ttk.Label(self, text='Scan header:')
-        self.widgets['label_headers'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
+        self.widgets['label_headers'].grid(row=row, column=column, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
 
         # Headers listbox
         row += rowspan
@@ -209,19 +215,33 @@ class Application(ttk.Frame):
             self.widgets['tree_headers'].column(col_name, width=20)
         # Hide first empty column
         self.widgets['tree_headers']['show']= 'headings'
-        self.widgets['tree_headers'].grid(row=row, column=1, sticky="nsew", padx=(10, 0))
+        self.widgets['tree_headers'].grid(row=row, column=column, sticky="nsew", padx=(10, 0))
 
         # Log Label
         row += rowspan
         rowspan = 1
+        colspan = 2
         self.widgets['log_label'] = ttk.Label(self, text='Log:')
-        self.widgets['log_label'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
+        self.widgets['log_label'].grid(row=row, column=column, rowspan=rowspan, columnspan=colspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
 
         # Log listbox
         row += rowspan
         rowspan = 1
         self.widgets['log_listbox'] = ScrollableListbox(self, height=4)
-        self.widgets['log_listbox'].grid(row=row, column=1, sticky="nsew", padx=(10, 0))
+        colspan = 2
+        self.widgets['log_listbox'].grid(row=row, column=column, columnspan=colspan, sticky="nsew", padx=(10, 0))
+
+        # Notes label
+        row = row_scan_header
+        column = 2
+        self.widgets['label_notes'] = ttk.Label(self, text='Annotations:')
+        self.widgets['label_notes'].grid(row=row, column=column, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(10, 0))
+
+        # Notes text field
+        row += rowspan
+        rowspan = 1
+        self.widgets['text_notes'] = tk.Text(self, width=40, height=4)
+        self.widgets['text_notes'].grid(row=row, column=column, sticky="nsew", padx=(10, 0))
 
         # Do not resize buttons column
         tk.Grid.columnconfigure(self, 0, weight=0)
@@ -268,7 +288,8 @@ class Application(ttk.Frame):
                     'bg2': 'entry_pilatus_bg2_columns',
                     'i0': 'entry_i0_column',
                     'energy': 'entry_energy_column',
-                    'formula': 'entry_pilatus_formula'
+                    'formula': 'entry_pilatus_formula',
+                    'annotations': 'text_notes'
                   }
 
     def maximize_window(self):
@@ -333,10 +354,10 @@ class Application(ttk.Frame):
         self.list_scan_data(scan_num)
 
     def load_config_ini(self):
-        self.config_ini = ConfigParser.ConfigParser()
+        self.config_ini = lib.configparser.ConfigParser()
         self.config_ini_file = os.path.join(os.path.expanduser('~'), 'xds-vonhamos-preview-tool-settings.ini')
         try:
-            self.config_ini.read(self.config_ini_file)
+            self.config_ini.readfp(codecs.open(self.config_ini_file, 'r', 'utf8'))
             self.default_open_dir = self.config_ini.get('global', 'default_open_dir') 
             self.default_open_file = self.config_ini.get('global', 'default_open_file') 
         except:
@@ -352,7 +373,7 @@ class Application(ttk.Frame):
         self.config_ini.set('global', 'default_open_dir', file_dir)
         self.config_ini.set('global', 'default_open_file', open_file)
         try:
-            with open(self.config_ini_file, 'w') as configfile:
+            with codecs.open(self.config_ini_file, 'w', 'utf8') as configfile:
                 self.config_ini.write(configfile)
         except:
             self.debug_log('Error writing ' + self.config_ini_file)
@@ -371,19 +392,27 @@ class Application(ttk.Frame):
             self.filename = os.path.basename(self.file_path)
 
             # Try to load file custom config
-            self.file_config_ini = ConfigParser.ConfigParser()
+            self.file_config_ini = lib.configparser.ConfigParser()
             self.file_config_ini_file = self.file_path + '_xds-vhpt.ini'
 
             try:
-                self.file_config_ini.read(self.file_config_ini_file)
+                self.file_config_ini.readfp(codecs.open(self.file_config_ini_file, 'r', 'utf8'))
             except:
                 self.debug_log('Error reading ' + self.file_config_ini_file)
 
             for config in self.configs:
+                # Entry widgets
                 try:
                     self.widgets[self.configs[config]].stringvar.set(self.file_config_ini.get('project', config))
                 except:
-                    self.debug_log('Ignoring config "' + config + '"')
+                    pass
+
+                # Text widgets
+                try:
+                    self.widgets[self.configs[config]].delete('1.0', 'end')
+                    self.widgets[self.configs[config]].insert('1.0', self.file_config_ini.get('project', config))
+                except:
+                    pass
 
             try:
                 w = self.widgets['calib_tree']
@@ -504,7 +533,16 @@ class Application(ttk.Frame):
             self.file_config_ini.add_section('project')
 
         for config in self.configs:
-            self.file_config_ini.set('project', config, self.widgets[self.configs[config]].stringvar.get())
+            # Entry widgets
+            try:
+                self.file_config_ini.set('project', config, self.widgets[self.configs[config]].stringvar.get())
+            except:
+                pass
+            # Text widgets
+            try:
+                self.file_config_ini.set('project', config, self.widgets[self.configs[config]].get('1.0', 'end'))
+            except:
+                pass
 
         calibration_data = self.widgets['calib_tree'].get_data()
         calib_string = ''
@@ -513,11 +551,11 @@ class Application(ttk.Frame):
         calib_string = calib_string[0:-1]
         self.file_config_ini.set('project', 'calibration', calib_string)
             
-        try:
-            with open(self.file_config_ini_file, 'w') as configfile:
-                self.file_config_ini.write(configfile)
-        except:
-            self.debug_log('Error writing ' + self.file_config_ini_file)
+        #try:
+        with codecs.open(self.file_config_ini_file, 'w', 'utf8') as configfile:
+            self.file_config_ini.write(configfile)
+        #except:
+            #self.debug_log('Error writing ' + self.file_config_ini_file)
 
     def action_xes(self):
         self.save_project_config()
