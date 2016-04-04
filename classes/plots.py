@@ -826,8 +826,37 @@ class ClipboardPlot(PlotWindow):
         self.widgets['btn_normalization_single']["command"] = self.action_btn_normalization_single
         self.widgets['btn_normalization_single'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Smoothing button
+        self.widgets['btn_smooth'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Smooth curve')
+        self.widgets['btn_smooth']["command"] = self.action_btn_smooth
+        self.widgets['btn_smooth'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Pack buttons frame
         self.widgets['frame_widgets'].grid(row=0, column=0)
+
+    def action_btn_smooth(self, *args, **kwargs):
+        if self.selected_artist is not None:
+
+            d = self.selected_artist['artist'].get_ydata()
+            # First, the border effect is fixed by mirroring the neighbours elements on the borders
+            # Then, the gaussian matrix convolution is used as a linear smooth algorithm
+            # Finally, the fictious elements are removed
+
+            # Gaussian smooth matrix
+            sigma = 0.5 
+            mu = 0
+            gauss = lambda x: 1.0/(sigma*np.sqrt(2.0*np.pi)) * np.exp(-0.5 * np.square((x-mu)/sigma))
+            discrete_gauss_x = np.linspace(-2, 2, 5)
+            discrete_gauss_y = gauss(discrete_gauss_x)
+            # Normalization of sum of smooth matrix
+            discrete_gauss_y = discrete_gauss_y / np.sum(discrete_gauss_y)
+
+            print discrete_gauss_y
+            smooth_data = np.convolve(discrete_gauss_y, np.concatenate((d[1, np.newaxis], d[0, np.newaxis], d, d[-1, np.newaxis], d[-2, np.newaxis])), mode='same')
+            self.selected_artist['artist'].set_ydata(smooth_data[2:-2])
+            d = self.selected_artist['artist'].get_ydata()
+
+        self.fig.canvas.draw()
 
     def action_btn_normalization_single(self, *args, **kwargs):
         if not self.normalization_single_flag:
