@@ -19,12 +19,9 @@ class SpecParser:
 
         # Variable initialization
         self.scans = OrderedDict()
-
         # Set file path
         self.specfile = specfile
-
         self.profiler = Profiler()
-
         self.parse()
 
     def get_scans(self):
@@ -51,13 +48,19 @@ class SpecParser:
 
         last_scan_id = 0
         scan_prefix = 0
+        motors_positions = []
+        columns_names = []
+        data_values = []
+        scan_id_prefix = 'CSV'
+        scan_command = 'CSV'
+        exposure_time = ''
+        scan_date = ''
 
         with open(self.specfile) as fp:
-            # Motors names should be initialized before reading each line, because it is an ocasional header that is not guarenteed to exist, and, when it does, it is not attached to a specific scan
+            # Motors names should be re-initialized before reading each line, because it is an ocasional header that is not guarenteed to exist, and, when it does, it is not attached to a specific scan
             motors_names = []
 
             for line in fp:
-
 
                 # Lines not starting with comment (#) and
                 # which are not empty are treated as column values (actual data / measurements)
@@ -96,6 +99,10 @@ class SpecParser:
                         self.scans[scan_id_prefix]['data_values'].append([row_number+1, str(calculated_energy)] + columns_values)
                         self.scans[scan_id_prefix]['data_values_indexed'][row_number] = [row_number+1, str(calculated_energy)] + columns_values
                         self.scans[scan_id_prefix]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
+                        # Fix for the cases where there is no header with columns names (CSV, etc)
+                        # Accounting two default columns: row_number and calculated_energy
+                        if len(self.scans[scan_id_prefix]['columns_names']) == 2:
+                            self.scans[scan_id_prefix]['columns_names'] = self.scans[scan_id_prefix]['columns_names'] + ['col'+str(x) for x in range(0, len(self.scans[scan_id_prefix]['data_values'])+1)]
                         row_number += 1
 
                 # Lines starting with #O are motor names
