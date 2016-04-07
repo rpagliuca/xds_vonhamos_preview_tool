@@ -395,6 +395,10 @@ class Application(ttk.Frame):
             self.file_config_ini = lib.configparser.ConfigParser()
             self.file_config_ini_file = self.file_path + '_xds-vhpt.ini'
 
+            # Clear calibration box, to avoid confusion for the user
+            self.widgets['calib_tree'].clear()
+            self.widgets['cb_calib'].var.set(False)
+
             try:
                 self.file_config_ini.readfp(codecs.open(self.file_config_ini_file, 'r', 'utf8'))
             except:
@@ -417,8 +421,6 @@ class Application(ttk.Frame):
             try:
                 w = self.widgets['calib_tree']
                 calib_list = self.file_config_ini.get('project', 'Calibration').split(';') 
-                if calib_list: # If there is a calib_list string, clear old calibration data
-                   w.clear() 
                 for calib_pair in calib_list:
                     pair = calib_pair.split(',')
                     item_id = w.append(["%.1f" % float(pair[0]), "%.4f" % float(pair[1])], {'roi': float(pair[0]), 'energy': float(pair[1])})
