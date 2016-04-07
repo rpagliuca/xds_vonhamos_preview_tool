@@ -157,6 +157,11 @@ class PlotWindow(tk.Toplevel):
         self.widgets['btn_export']["command"] = self.action_btn_export
         self.widgets['btn_export'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Quick normalization button
+        self.widgets['btn_quick_normalization'] = ttk.Button(self.widgets['frame_widgets'], text='Auto normalization')
+        self.widgets['btn_quick_normalization']["command"] = self.action_btn_quick_normalization
+        self.widgets['btn_quick_normalization'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Sum plots checkbox
         #self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['frame_widgets'], text='Auto refresh')
         #self.widgets['cb_auto_refresh'].pack(side=tk.LEFT, padx=10, pady=10)
@@ -231,6 +236,14 @@ class PlotWindow(tk.Toplevel):
                 line_num += 1
                 path = file_path + '_' + self.plot_type + '_' + str(line_num) + '.txt'
                 np.savetxt(path, np.column_stack([line.get_xdata(), line.get_ydata()]))
+
+    def action_btn_quick_normalization(self, *args, **kwargs):
+        for line in self.main_axes.get_lines():
+            y = line.get_ydata()
+            y = y-np.amin(y)
+            y = np.divide(y, np.amax(y))
+            line.set_ydata(y)
+        self.action_btn_zoomall()
 
     def action_btn_copy(self, *args, **kwargs):
         if self.application is not None and self.selected_artist is not None:
@@ -831,6 +844,11 @@ class ClipboardPlot(PlotWindow):
         self.widgets['btn_smooth']["command"] = self.action_btn_smooth
         self.widgets['btn_smooth'].pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Derivative button
+        self.widgets['btn_derivative'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Derivative')
+        self.widgets['btn_derivative']["command"] = self.action_btn_derivative
+        self.widgets['btn_derivative'].pack(side=tk.LEFT, padx=10, pady=5)
+
         # Pack buttons frame
         self.widgets['frame_widgets'].grid(row=0, column=0)
 
@@ -851,11 +869,22 @@ class ClipboardPlot(PlotWindow):
             # Normalization of sum of smooth matrix
             discrete_gauss_y = discrete_gauss_y / np.sum(discrete_gauss_y)
 
-            print discrete_gauss_y
             smooth_data = np.convolve(discrete_gauss_y, np.concatenate((d[1, np.newaxis], d[0, np.newaxis], d, d[-1, np.newaxis], d[-2, np.newaxis])), mode='same')
             self.selected_artist['artist'].set_ydata(smooth_data[2:-2])
             d = self.selected_artist['artist'].get_ydata()
 
+        self.fig.canvas.draw()
+
+    def action_btn_derivative(self, *args, **kwargs):
+        if self.selected_artist is not None:
+            y = self.selected_artist['artist'].get_ydata()
+            x = self.selected_artist['artist'].get_xdata()
+            # Border effects may exist
+            derivative_data = np.convolve(np.array([-1, 0, 1]), y, mode='same')
+            delta_data = np.convolve(np.array([-1, 0, 1]), x, mode='same')
+            derivative_data = np.divide(derivative_data, delta_data)
+            self.selected_artist['artist'].set_ydata(derivative_data)
+            d = self.selected_artist['artist'].get_ydata()
         self.fig.canvas.draw()
 
     def action_btn_normalization_single(self, *args, **kwargs):
