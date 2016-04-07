@@ -871,8 +871,6 @@ class ClipboardPlot(PlotWindow):
 
             smooth_data = np.convolve(discrete_gauss_y, np.concatenate((d[1, np.newaxis], d[0, np.newaxis], d, d[-1, np.newaxis], d[-2, np.newaxis])), mode='same')
             self.selected_artist['artist'].set_ydata(smooth_data[2:-2])
-            d = self.selected_artist['artist'].get_ydata()
-
         self.fig.canvas.draw()
 
     def action_btn_derivative(self, *args, **kwargs):
@@ -883,8 +881,7 @@ class ClipboardPlot(PlotWindow):
             derivative_data = np.convolve(np.array([-1, 0, 1]), y, mode='same')
             delta_data = np.convolve(np.array([-1, 0, 1]), x, mode='same')
             derivative_data = np.divide(derivative_data, delta_data)
-            self.selected_artist['artist'].set_ydata(derivative_data)
-            d = self.selected_artist['artist'].get_ydata()
+            self.main_axes.plot(x, derivative_data, picker=self.picker_tolerance, label='<Derivative of ' + self.selected_artist['artist'].get_label() + '>')
         self.fig.canvas.draw()
 
     def action_btn_normalization_single(self, *args, **kwargs):
