@@ -571,12 +571,16 @@ class RXESPlot(PlotWindow):
             # If profile_x and profile_y not defined, use max intensity as center
             x_index, y_index = np.unravel_index(Z.argmax(), Z.shape)
             x_index_mesh, y_index_mesh = np.unravel_index(Zmesh.argmax(), Zmesh.shape)
+            xlim = [ np.amin(X), np.amax(X) ]
+            ylim = [ np.amin(Ymesh), np.amax(Ymesh) ]
         else:
             # Find the closest positions (x, y) to the ones clicked by the user
             x_index = self.find_closest_in_array(Y[:, 0], profile_y)
             y_index = self.find_closest_in_array(X[x_index, :], profile_x)
             x_index_mesh = self.find_closest_in_array(Ymesh[:, 0], profile_y)
             y_index_mesh = self.find_closest_in_array(Xmesh[x_index_mesh, :], profile_x)
+            ylim = self.main_axes.get_ylim()
+            xlim = self.main_axes.get_xlim()
 
         # Try to remove horizontal and vertical line, if they already exist
         try:
@@ -590,7 +594,6 @@ class RXESPlot(PlotWindow):
         self.vline = self.main_axes.vlines(X[x_index, y_index], np.amin(Y), np.amax(Y), linewidth=2, color='fuchsia', linestyles='dashed') 
 
         # Gaussian fit for right axes
-        ylim = self.right_axes.get_ylim()
         y_index_min = self.find_closest_in_array(Ymesh[:, y_index_mesh], ylim[0])
         y_index_max = self.find_closest_in_array(Ymesh[:, y_index_mesh], ylim[1])
         y_index_min, y_index_max = sorted([y_index_min, y_index_max]) # Sort lower and higher indices
@@ -611,7 +614,6 @@ class RXESPlot(PlotWindow):
             self.right_profile_fit.set_ydata(Ymesh[y_index_min:y_index_max+1, y_index_mesh])
 
         # Gaussian fit for bottom axes
-        xlim = self.bottom_axes.get_xlim()
         x_index_min = self.find_closest_in_array(X[x_index, :], xlim[0])
         x_index_max = self.find_closest_in_array(X[x_index, :], xlim[1])
         x_index_min, x_index_max = sorted([x_index_min, x_index_max]) # Sort lower and higher indices
