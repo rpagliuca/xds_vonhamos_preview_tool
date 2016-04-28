@@ -515,9 +515,8 @@ class Application(ttk.Frame):
         if formula_contains_I0:
             formula = formula.replace('I0', 'selected_data[:, ' + str(p['i0_column']) + '].reshape(' + str(len(selected_data)) + ', 1).astype("float")')
 
-        intensity_values = eval(formula)
+        intensity_values = eval(formula).astype('string')
         selected_data = np.column_stack((selected_data, intensity_values))
-
 
         return selected_data
 
