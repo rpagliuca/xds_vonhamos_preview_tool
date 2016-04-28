@@ -604,14 +604,16 @@ class RXESPlot(PlotWindow):
         if self.right_profile is None:
             self.right_profile = self.right_axes.plot(Zmesh[:, y_index_mesh], Ymesh[:, y_index_mesh], picker=self.picker_tolerance)[0] # Line plot
             self.right_profile_scatter = self.right_axes.plot(Zmesh[:, y_index_mesh], Ymesh[:, y_index_mesh], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)[0] # Scatter plot
-            self.right_profile_fit = self.right_axes.plot(fit.get_fit_y_data(), Ymesh[y_index_min:y_index_max+1, y_index_mesh], '--', color='red', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            #self.right_profile_fit = self.right_axes.plot(fit.get_fit_y_data(), Ymesh[y_index_min:y_index_max+1, y_index_mesh], '--', color='red', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            self.right_profile_fit = self.right_axes.plot(fit.get_fit_y_data(), fit.get_fit_x_data(), '--', color='red', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
         else:
             self.right_profile.set_xdata(Zmesh[:, y_index_mesh])
             self.right_profile.set_ydata(Ymesh[:, y_index_mesh])
             self.right_profile_scatter.set_xdata(Zmesh[:, y_index_mesh])
             self.right_profile_scatter.set_ydata(Ymesh[:, y_index_mesh])
             self.right_profile_fit.set_xdata(fit.get_fit_y_data())
-            self.right_profile_fit.set_ydata(Ymesh[y_index_min:y_index_max+1, y_index_mesh])
+            #self.right_profile_fit.set_ydata(Ymesh[y_index_min:y_index_max+1, y_index_mesh])
+            self.right_profile_fit.set_ydata(fit.get_fit_x_data())
 
         # Gaussian fit for bottom axes
         x_index_min = self.find_closest_in_array(X[x_index, :], xlim[0])
@@ -624,13 +626,15 @@ class RXESPlot(PlotWindow):
         if self.bottom_profile is None:
             self.bottom_profile = self.bottom_axes.plot(X[x_index, :], Z[x_index, :], picker=self.picker_tolerance)[0]
             self.bottom_profile_scatter = self.bottom_axes.plot(X[x_index, :], Z[x_index, :], 'o', markerfacecolor='black', markeredgecolor=None, markeredgewidth=0, markersize=2.0)[0] # Scatter plot
-            self.bottom_profile_fit = self.bottom_axes.plot(X[x_index, x_index_min:x_index_max+1], fit.get_fit_y_data(), '--', color='red', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            #self.bottom_profile_fit = self.bottom_axes.plot(X[x_index, x_index_min:x_index_max+1], fit.get_fit_y_data(), '--', color='red', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            self.bottom_profile_fit = self.bottom_axes.plot(fit.get_fit_x_data(), fit.get_fit_y_data(), '--', color='red', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
         else:
             self.bottom_profile.set_xdata(X[x_index, :])
             self.bottom_profile.set_ydata(Z[x_index, :])
             self.bottom_profile_scatter.set_xdata(X[x_index, :])
             self.bottom_profile_scatter.set_ydata(Z[x_index, :])
-            self.bottom_profile_fit.set_xdata(X[x_index, x_index_min:x_index_max+1])
+            #self.bottom_profile_fit.set_xdata(X[x_index, x_index_min:x_index_max+1])
+            self.bottom_profile_fit.set_xdata(fit.get_fit_x_data())
             self.bottom_profile_fit.set_ydata(fit.get_fit_y_data())
 
         label = '<Fig. ' + str(self.figure_number) + '; Profile at x=' + str(Xmesh[0, y_index_mesh]) + '>'
@@ -940,7 +944,8 @@ class ClipboardPlot(PlotWindow):
             x_index_min, x_index_max = sorted([x_index_min, x_index_max]) # Sort lower and higher indices
             fit = GaussianFit(X[x_index_min:x_index_max+1], Z[x_index_min:x_index_max+1])
             self.log('* Gaussian fit w/ FWHM=' + str(fit.get_fwhm()) + ' for ' + str(a.get_label()))
-            fitplot = self.main_axes.plot(X[x_index_min:x_index_max+1], fit.get_fit_y_data(), '--', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            #fitplot = self.main_axes.plot(X[x_index_min:x_index_max+1], fit.get_fit_y_data(), '--', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
+            fitplot = self.main_axes.plot(fit.get_fit_x_data(), fit.get_fit_y_data(), '--', linewidth=2.0, picker=self.picker_tolerance)[0] # Fit plot
             label = '<Gaussian fit w/ FWHM=' + str(fit.get_fwhm()) + ' for ' + a.get_label() + '>'
             fitplot.set_label(label)
             self.fig.canvas.draw()

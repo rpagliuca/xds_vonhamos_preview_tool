@@ -13,6 +13,7 @@ class GaussianFit():
     def __init__(self, x_data, y_data, initial_guess=None, *args, **kwargs):
         self.x_data = x_data
         self.y_data = y_data
+        self.x_data_fit = None # Is defined later on, as it depends on sigma
         
         if initial_guess is None:
             peak_pos =  np.argmax(y_data)
@@ -52,10 +53,12 @@ class GaussianFit():
 
     def fit(self):
         # Gaussian fit -- http://stackoverflow.com/a/11507723/1501575
-        # p0 is the initial guess for the fitting coefficients (A, mu and sigma above)
+        # p0 is the initial guess for the fitting coefficients (A, mu, sigma, B)
         coeff = []
         try:
             coeff, var_matrix = scipy.optimize.curve_fit(self.gauss_func, self.x_data, self.y_data, p0=self.initial_guess)
+            sigma = coeff[2]
+            self.x_data_fit = np.arange(np.amin(self.x_data), np.amax(self.x_data), sigma/3.0)
         except Exception as e:
             print 'Error finding parameters for Gaussian fit. Check library scipy or fitted data.'
             print e.message
@@ -67,11 +70,17 @@ class GaussianFit():
     def get_initial_guess(self):
         return self.initial_guess
 
+    def get_fit_x_data(self):
+        if self.coeff == []:
+            return []
+        else:
+            return self.x_data_fit
+
     def get_fit_y_data(self):
         if self.coeff == []:
-            return 0.0*self.x_data
+            return []
         else:
-            return self.gauss_func(self.x_data, *self.coeff)
+            return self.gauss_func(self.x_data_fit, *self.coeff)
 
     # Gaussian fit -- http://stackoverflow.com/a/11507723/1501575
     # p0 is the initial guess for the fitting coefficients (A, mu and sigma above)
