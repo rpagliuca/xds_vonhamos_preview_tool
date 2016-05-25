@@ -3,7 +3,7 @@ INSTALLATION - EASIEST WAY
 * Step 1 - Install Anaconda Python 2.7 for your platform (Linux, OSX or Windows):
     https://www.continuum.io/downloads (~350 MB download)
 
-* Step 2 - Download XDS Von Hamos Preview Tool (XDS-VHPT) from:
+* Step 2 - Download XDS Von Hamos Preview Tool (XDS-VHPT) from: https://github.com/rpagliuca/xds_vonhamos_preview_tool/
 
 * Step 3 - Extract and run: `python __main__.py` from within XDS-VHPT folder
 
