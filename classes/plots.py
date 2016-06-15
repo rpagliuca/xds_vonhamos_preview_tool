@@ -78,16 +78,12 @@ class PlotWindow(tk.Toplevel):
             # Find x position in array X
             x_pos = 0
             x_index = -1
+            last_diff = np.abs(np.amax(X)-np.amin(X))
             for x in X:
-                if x_pos > 0:
-                    if abs(x-x0) >= last_diff:
-                        x_index = x_pos-1
-                        break
-                last_diff = abs(x-x0) 
+                if abs(x-x0) < last_diff:
+                    x_index = x_pos
+                    last_diff = abs(x-x0) 
                 x_pos += 1
-            # It max be the last item of the array
-            if x_index == -1:
-                x_index = x_pos-1
             return x_index
 
 
