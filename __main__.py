@@ -170,13 +170,13 @@ class Application(ttk.Frame):
         # Import calib
         self.widgets['btn_calib_import'] = ttk.Button(self.widgets['calib_frame'])
         self.widgets['btn_calib_import']["text"] = "Import calib."
-        self.widgets['btn_calib_import']["command"] = self.action_calib_preview
+        self.widgets['btn_calib_import']["command"] = self.import_emitted_energy_calibration
         self.widgets['btn_calib_import'].grid(row=0, column=1, sticky="nsew", pady=(0,2), padx=(0,2))
 
         # Export calib
         self.widgets['btn_calib_export'] = ttk.Button(self.widgets['calib_frame'])
         self.widgets['btn_calib_export']["text"] = "Export calib."
-        self.widgets['btn_calib_export']["command"] = self.action_calib_preview
+        self.widgets['btn_calib_export']["command"] = self.export_emitted_energy_calibration
         self.widgets['btn_calib_export'].grid(row=0, column=2, sticky="nsew", pady=(0,2))
 
         tk.Grid.columnconfigure(self.widgets['calib_frame'], 0, weight=1)
@@ -576,6 +576,41 @@ class Application(ttk.Frame):
             self.file_config_ini.write(configfile)
         #except:
             #self.debug_log('Error writing ' + self.file_config_ini_file)
+
+    def export_emitted_energy_calibration(self, *args, **kwargs):
+        config = lib.configparser.ConfigParser()
+        file_path = fd.asksaveasfilename(initialdir=self.default_open_dir, defaultextension='.vhc', filetypes=['"Von Hamos calibration file" .vhc'])
+        config.add_section('project')
+        calibration_data = self.widgets['calib_tree'].get_data()
+        calib_string = ''
+        for calib_pair in calibration_data:
+            calib_string += str(calib_pair['roi']) + ',' + str(calib_pair['energy']) + ';'
+        calib_string = calib_string[0:-1]
+        config.set('project', 'Calibration', calib_string)
+        with codecs.open(file_path, 'w', 'utf8') as configfile:
+            config.write(configfile)
+
+    def import_emitted_energy_calibration(self, *args, **kwargs):
+        config = lib.configparser.ConfigParser()
+        file_path = fd.askopenfilename(initialdir=self.default_open_dir, defaultextension='.vhc', filetypes=['"Von Hamos calibration file" .vhc'])
+        if file_path:
+            # Clear calibration box, to avoid confusion for the user
+            self.widgets['calib_tree'].clear()
+            self.widgets['cb_calib'].var.set(False)
+            try:
+                config.readfp(codecs.open(file_path, 'r', 'utf8'))
+            except:
+                self.debug_log('Error reading ' + file_path)
+            try:
+                w = self.widgets['calib_tree']
+                calib_list = config.get('project', 'Calibration').split(';') 
+                for calib_pair in calib_list:
+                    pair = calib_pair.split(',')
+                    item_id = w.append(["%.1f" % float(pair[0]), "%.4f" % float(pair[1])], {'roi': float(pair[0]), 'energy': float(pair[1])})
+                    w.see(item_id)
+                    self.widgets['cb_calib'].var.set(True)
+            except:
+                self.debug_log('Error reading config "Calibration"')
 
     def action_xes(self):
         self.save_project_config()
