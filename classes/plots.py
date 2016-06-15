@@ -461,6 +461,7 @@ class RXESPlot(PlotWindow):
             y = event.ydata
             if self.application:
                 w = self.application.widgets['calib_tree']
+                x = round(x)
                 item_id = w.append(["%.1f" % x, "%.4f" % y], {'roi': x, 'energy': y})
                 self.main_axes.plot(x, y, '+', markerfacecolor='black', markeredgecolor='black', markeredgewidth=2.0, markersize=10.0)
                 self.preview_calibration()
