@@ -146,8 +146,8 @@ class Application(ttk.Frame):
 
         # Scans listbox
         row += rowspan
-        rowspan = 3
-        row_expandable = row # Store number of expandable row
+        rowspan = 1
+        row_expandable = row+rowspan-1 # Store number of expandable row
         self.widgets['scans_listbox'] = ScrollableListbox(self)
         self.widgets['scans_listbox'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew")
         self.widgets['scans_listbox'].bind('<<ListboxSelect>>', self.action_scans_listbox_select)
@@ -157,9 +157,53 @@ class Application(ttk.Frame):
         rowspan = 1
         self.widgets['calib_frame'] = ttk.Frame(self)
 
+        # Incoming energy calibration label
+        self.widgets['label_incoming_energy_calib'] = ttk.Label(self.widgets['calib_frame'], text='Incoming energy calibration:')
+        self.widgets['label_incoming_energy_calib'].grid(row=0, column=0, columnspan=3, sticky="nsw", pady=(0, 2))
+
+        # Checkbox use calibration
+        self.widgets['cb_calib'] = Checkbox(self.widgets['calib_frame'], text='Enabled')
+        self.widgets['cb_calib'].grid(row=1, column=0, sticky="nsw", pady=(0, 2), padx=(0,2))
+
+        # Button import calib
+        self.widgets['btn_incoming_energy_calib_import'] = ttk.Button(self.widgets['calib_frame'])
+        self.widgets['btn_incoming_energy_calib_import']["text"] = "Import"
+        self.widgets['btn_incoming_energy_calib_import']["command"] = self.import_emitted_energy_calibration
+        self.widgets['btn_incoming_energy_calib_import'].grid(row=1, column=1, sticky="nsew", pady=(0,2), padx=(0,2))
+
+        # Button export calib
+        self.widgets['btn_incoming_energy_calib_export'] = ttk.Button(self.widgets['calib_frame'])
+        self.widgets['btn_incoming_energy_calib_export']["text"] = "Export"
+        self.widgets['btn_incoming_energy_calib_export']["command"] = self.export_emitted_energy_calibration
+        self.widgets['btn_incoming_energy_calib_export'].grid(row=1, column=2, sticky="nsew", pady=(0,2))
+
+        # Entry Param A
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_incoming_energy_calib_param_A'] = LabeledEntry(self.widgets['calib_frame'], 'A: ', '0', 5)
+        self.widgets['entry_incoming_energy_calib_param_A'].grid(row=2, column=0, sticky="nsew", pady=(0, 2), padx=(0,2))
+
+        # Entry Param B
+        row += rowspan
+        rowspan = 1
+        self.widgets['entry_incoming_energy_calib_param_B'] = LabeledEntry(self.widgets['calib_frame'], 'B: ', '0', 5)
+        self.widgets['entry_incoming_energy_calib_param_B'].grid(row=2, column=1, sticky="nsew", pady=(0, 2), padx=(0,2))
+
+        # Button Fit
+        self.widgets['btn_incoming_energy_calib_fit'] = ttk.Button(self.widgets['calib_frame'])
+        self.widgets['btn_incoming_energy_calib_fit']["text"] = "Calib. Wizard"
+        self.widgets['btn_incoming_energy_calib_fit']["command"] = self.export_emitted_energy_calibration
+        self.widgets['btn_incoming_energy_calib_fit'].grid(row=2, column=2, sticky="nsew", pady=(0,2))
+
+        # Emitted energy calibration label
+        row += rowspan
+        rowspan = 1
+        self.widgets['label_emitted_energy_calib'] = ttk.Label(self.widgets['calib_frame'], text='Emitted energy calibration:')
+        self.widgets['label_emitted_energy_calib'].grid(row=3, column=0, columnspan=3, sticky="nsw", pady=(10, 2))
+
         # Calibration Checkbox
-        self.widgets['cb_calib'] = Checkbox(self.widgets['calib_frame'], text='Use calib.')
-        self.widgets['cb_calib'].grid(row=0, column=0, sticky="nsew", pady=(0, 2), padx=(0,2))
+        self.widgets['cb_calib'] = Checkbox(self.widgets['calib_frame'], text='Enabled')
+        self.widgets['cb_calib'].grid(row=4, column=0, sticky="nsw", pady=(0, 2), padx=(0,2))
 
         # Calibration Preview Button
         #self.widgets['btn_calib_preview'] = ttk.Button(self.widgets['calib_frame'])
@@ -169,20 +213,26 @@ class Application(ttk.Frame):
 
         # Import calib
         self.widgets['btn_calib_import'] = ttk.Button(self.widgets['calib_frame'])
-        self.widgets['btn_calib_import']["text"] = "Import calib."
+        self.widgets['btn_calib_import']["text"] = "Import"
         self.widgets['btn_calib_import']["command"] = self.import_emitted_energy_calibration
-        self.widgets['btn_calib_import'].grid(row=0, column=1, sticky="nsew", pady=(0,2), padx=(0,2))
+        self.widgets['btn_calib_import'].grid(row=4, column=1, sticky="nsew", pady=(0,2), padx=(0,2))
 
         # Export calib
         self.widgets['btn_calib_export'] = ttk.Button(self.widgets['calib_frame'])
-        self.widgets['btn_calib_export']["text"] = "Export calib."
+        self.widgets['btn_calib_export']["text"] = "Export"
         self.widgets['btn_calib_export']["command"] = self.export_emitted_energy_calibration
-        self.widgets['btn_calib_export'].grid(row=0, column=2, sticky="nsew", pady=(0,2))
+        self.widgets['btn_calib_export'].grid(row=4, column=2, sticky="nsew", pady=(0,2))
 
         tk.Grid.columnconfigure(self.widgets['calib_frame'], 0, weight=1)
         tk.Grid.columnconfigure(self.widgets['calib_frame'], 1, weight=1)
         tk.Grid.columnconfigure(self.widgets['calib_frame'], 2, weight=1)
-        self.widgets['calib_frame'].grid(row=row, column=0, rowspan=rowspan, sticky="sew", pady=(2, 2))
+        self.widgets['calib_frame'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew", pady=(2, 2))
+
+        # Headers label
+        row += rowspan
+        rowspan = 1
+        self.widgets['label_calib_roi_data'] = ttk.Label(self, text='Calibration points:')
+        self.widgets['label_calib_roi_data'].grid(row=row, column=0, rowspan=rowspan, sticky="nsew", pady=(10, 0), padx=(0, 0))
 
         # Calibration listbox
         row += rowspan
@@ -202,6 +252,7 @@ class Application(ttk.Frame):
         column = 1
         row = 0
         rowspan = row_expandable+1
+        print rowspan
         colspan = 2
         self.widgets['data_frame'] = ttk.Frame(self)
         self.widgets['data_frame'].grid(row=row, column=column, rowspan=rowspan, columnspan=colspan, sticky="nsew", padx=(10, 0))
@@ -225,7 +276,8 @@ class Application(ttk.Frame):
 
         # Headers listbox
         row += rowspan
-        rowspan = 1
+        rowspan = 3
+        row_scan_rowspan = rowspan
         self.widgets['tree_headers'] = ScrollableTreeview(self, height=4)
         col_names = ['Motor', 'Position']
         self.widgets['tree_headers']['columns'] = col_names
@@ -234,7 +286,7 @@ class Application(ttk.Frame):
             self.widgets['tree_headers'].column(col_name, width=20)
         # Hide first empty column
         self.widgets['tree_headers']['show']= 'headings'
-        self.widgets['tree_headers'].grid(row=row, column=column, sticky="nsew", padx=(10, 0))
+        self.widgets['tree_headers'].grid(row=row, column=column, rowspan=rowspan, sticky="nsew", padx=(10, 0))
 
         # Log Label
         row += rowspan
@@ -258,9 +310,9 @@ class Application(ttk.Frame):
 
         # Notes text field
         row += rowspan
-        rowspan = 1
+        rowspan = row_scan_rowspan
         self.widgets['text_notes'] = tk.Text(self, width=40, height=4)
-        self.widgets['text_notes'].grid(row=row, column=column, sticky="nsew", padx=(10, 0))
+        self.widgets['text_notes'].grid(row=row, column=column, rowspan=rowspan, sticky="nsew", padx=(10, 0))
 
         # Do not resize buttons column
         tk.Grid.columnconfigure(self, 0, weight=0)

@@ -207,13 +207,13 @@ class ScrollableTreeview(ScrollableWidget, ttk.Treeview, DataWidget, EditableCel
             self.select_all()
     
 class LabeledEntry(ttk.Frame):
-    def __init__(self, master=None, label_text='', default_value=''):
+    def __init__(self, master=None, label_text='', default_value='', width=20):
         # Entry Pilatus Columns
         ttk.Frame.__init__(self, master=master)
         self.label = ttk.Label(self, text=label_text)
         self.stringvar = tk.StringVar()
         self.stringvar.set(default_value)
-        self.input = ttk.Entry(self, textvariable=self.stringvar)
+        self.input = ttk.Entry(self, textvariable=self.stringvar, width=width)
         self.label.pack(side='left')
         self.input.pack(side='left')
 
