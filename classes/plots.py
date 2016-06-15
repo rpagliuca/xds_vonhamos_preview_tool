@@ -330,13 +330,16 @@ class PlotWindow(tk.Toplevel):
                 self.main_axes.set_xlabel('ROI')
             return rois_numbers
 
-    def rois_to_energies(self):
+    def rois_to_energies(self, fresh=False):
         ' Used on plots which have ROI as x axis '
         p = self.parameters
         rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
 
         # Fitting
-        calib = Tools.list_to_numpy(p['calibration_data']) 
+        if not fresh:
+            calib = Tools.list_to_numpy(p['calibration_data']) 
+        else:
+            calib = Tools.list_to_numpy(self.application.widgets['calib_tree'].get_data())
         equation_parameters = np.polyfit(calib[:, 1], calib[:, 0], min(2, calib.shape[0]-1))
         self.log('* Energy calibration coefficients: ' + str(equation_parameters))
 
@@ -459,8 +462,23 @@ class RXESPlot(PlotWindow):
             if self.application:
                 w = self.application.widgets['calib_tree']
                 item_id = w.append(["%.1f" % x, "%.4f" % y], {'roi': x, 'energy': y})
+                self.main_axes.plot(x, y, '+', markerfacecolor='black', markeredgecolor='black', markeredgewidth=2.0, markersize=10.0)
+                self.preview_calibration()
+                # Redraw changes
+                self.fig.canvas.draw()
                 w.see(item_id)
                 self.application.widgets['cb_calib'].var.set(True)
+
+    def preview_calibration(self):
+        p = self.parameters
+        rois_numbers = self.columns_names_parse_as_int(p['intensity_names'])
+        label='<Calibration fit curve>'
+        # Try to remove previous calib line, if it exists
+        try:
+            self.preview_calib_line.remove()
+        except:
+            pass
+        self.preview_calib_line, = self.main_axes.plot(rois_numbers, self.rois_to_energies(fresh=True), linewidth=2, color='fuchsia', picker=self.picker_tolerance, label=label)
 
     def action_profile_click(self, event, *args, **kwargs):
         if event.dblclick and event.inaxes == self.main_axes:
