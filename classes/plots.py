@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 import re
 import numpy as np
+import scipy
+import tkSimpleDialog
 # Custom classes
 from tools import *
 from custom_widgets import *
@@ -33,6 +35,7 @@ class PlotWindow(tk.Toplevel):
         self.parameters = parameters
         self.application = application
         self.data = data
+        self.pick_data_points_flag = False
         self.normalization_flag = False
         self.normalization_single_flag = False
         self.normalization_value = 1
@@ -54,6 +57,8 @@ class PlotWindow(tk.Toplevel):
         # Set window title
         if plot_type == 'Clipboard':
             self.title('Clipboard') 
+        elif plot_type == 'MogonioCalibration':
+            self.title('Mogonio Calibration Wizard')
         elif plot_type == 'Calibration':
             self.title('Calibration Fit Curve') 
         else:
@@ -102,21 +107,24 @@ class PlotWindow(tk.Toplevel):
         if self.selected_artist is not None and self.selected_artist['artist'] is event.artist:
             self.selected_artist = None # Clear selection if clicking twice on the same object
         else:
-            # Store current selected artist
-            self.selected_artist = {
-                'artist': event.artist,
-                'color': event.artist.get_color(),
-                'width': event.artist.get_linewidth(),
-                'xy': xy,
-                'xydata': xydata
-            }
-            # Change some attributes to show the user that the artist is currently selected
-            event.artist.set_color('purple')
-            event.artist.set_linewidth(3)
+            self.select_artist(event.artist, xy, xydata)
             self.log('* Selected plot object: ' + event.artist.get_label())
 
         # Redraw changes
         self.fig.canvas.draw()
+
+    def select_artist(self, artist, xy, xydata):
+        # Store current selected artist
+        self.selected_artist = {
+            'artist': artist,
+            'color': artist.get_color(),
+            'width': artist.get_linewidth(),
+            'xy': xy,
+            'xydata': xydata
+        }
+        # Change some attributes to show the user that the artist is currently selected
+        artist.set_color('purple')
+        artist.set_linewidth(3)
 
     def add_profiles_and_colorbar(self):
 
@@ -241,6 +249,10 @@ class PlotWindow(tk.Toplevel):
             line.set_ydata(y)
         self.action_btn_zoomall()
 
+    def disable_picker(self, *args, **kwargs):
+        for line in self.main_axes.get_lines():
+            line.set_picker(None)
+
     def action_btn_copy(self, *args, **kwargs):
         if self.application is not None and self.selected_artist is not None:
             if self.application.clipboard_plot is None:
@@ -326,6 +338,20 @@ class PlotWindow(tk.Toplevel):
                 self.main_axes.set_xlabel('ROI')
             return rois_numbers
 
+    def mogonio_to_energy(self):
+        p = self.parameters
+        energies_values = np.array(self.data[:, p['energy_column']], dtype=float)
+        if p['use_mogonio_calibration']:
+            A = p['mogonio_calibration_a']
+            B = p['mogonio_calibration_b']
+            hc = 1239.8 # nm.eV
+            a = 0.543102 # lattice parameter for Si, in nm 
+            miller_indices = [1, 1, 1]
+            m = miller_indices
+            return (hc * np.sqrt(m[0]**2 + m[1]**2 + m[2]**2)/(2*a*np.sin(np.radians(A + B*energies_values))))/1000.0
+        else:
+            return energies_values
+
     def rois_to_energies(self, fresh=False):
         ' Used on plots which have ROI as x axis '
         p = self.parameters
@@ -390,6 +416,18 @@ class PlotWindow(tk.Toplevel):
             self.action_btn_normalization()
             self.refresh_plot()
 
+    def action_btn_derivative(self, *args, **kwargs):
+        if self.selected_artist is not None:
+            y = self.selected_artist['artist'].get_ydata()
+            x = self.selected_artist['artist'].get_xdata()
+            # Border effects may exist
+            derivative_data = np.convolve(np.array([-1, 0, 1]), y, mode='same')
+            delta_data = np.convolve(np.array([-1, 0, 1]), x, mode='same')
+            derivative_data = np.divide(derivative_data, delta_data)
+            self.main_axes.plot(x, derivative_data, picker=self.picker_tolerance, label='<Derivative of ' + self.selected_artist['artist'].get_label() + '>')
+        self.fig.canvas.draw()
+
+
 class RXESPlot(PlotWindow):
 
     def __init__(self, *args, **kwargs):
@@ -429,6 +467,16 @@ class RXESPlot(PlotWindow):
         # Pack buttons frame
         self.widgets['frame_widgets'].grid(row=0, column=0)
 
+    def action_btn_profile(self, *args, **kwargs):
+        if not self.profile_flag:
+            self.profile_flag = True
+            self.widgets['btn_profile']['text'] = 'Please double-click at the new center...'
+            self.profile_connection = self.canvas.mpl_connect('button_press_event', self.action_profile_click)
+        else:
+            self.widgets['btn_profile']['text'] = 'Profile center'
+            self.profile_flag = False
+            self.canvas.mpl_disconnect(self.profile_connection)
+
     def action_btn_calibration(self, *args, **kwargs):
         if not self.calibration_flag:
             self.calibration_flag = True
@@ -440,16 +488,6 @@ class RXESPlot(PlotWindow):
             self.widgets['btn_calibration']['text'] = 'Calibrate energy'
             self.calibration_flag = False
             self.canvas.mpl_disconnect(self.calibration_connection)
-
-    def action_btn_profile(self, *args, **kwargs):
-        if not self.profile_flag:
-            self.profile_flag = True
-            self.widgets['btn_profile']['text'] = 'Please double-click at the new center...'
-            self.profile_connection = self.canvas.mpl_connect('button_press_event', self.action_profile_click)
-        else:
-            self.widgets['btn_profile']['text'] = 'Profile center'
-            self.profile_flag = False
-            self.canvas.mpl_disconnect(self.profile_connection)
 
     def action_calibration_click(self, event, *args, **kwargs):
         if event.dblclick and event.inaxes == self.main_axes:
@@ -527,7 +565,7 @@ class RXESPlot(PlotWindow):
         counts = np.divide(counts, np.amax(counts))
         # Axis
         roi_axis = self.roi_axis()
-        energies_values = self.data[:, p['energy_column']].tolist()
+        energies_values = self.mogonio_to_energy().tolist()
 
         X = roi_axis
         Y = energies_values
@@ -713,7 +751,7 @@ class HERFDPlot(PlotWindow):
         
         for roi_index in range(len(p['intensity_columns'])):
             label = '<Fig. ' + str(self.figure_number) + '; ROI = ' + p['intensity_names'][roi_index] + '>'
-            self.main_axes.plot(self.data[:, p['energy_column']], normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
+            self.main_axes.plot(self.mogonio_to_energy(), normalized_data[:, roi_index], picker=self.picker_tolerance, label=label)
 
         self.plot_redraw()
 
@@ -725,7 +763,7 @@ class HERFDPlot(PlotWindow):
 
         # Add plot line of the sum
         label = '<Fig. ' + str(self.figure_number) + '; Sum>'
-        self.main_axes.plot(self.data[:, p['energy_column']], normalized_data, picker=self.picker_tolerance, label=label)
+        self.main_axes.plot(self.mogonio_to_energy(), normalized_data, picker=self.picker_tolerance, label=label)
         self.plot_redraw()
 
     def config_plot_custom(self):
@@ -827,6 +865,80 @@ class CalibrationPlot(PlotWindow):
             energies.append(float(calib['energy']))
         self.main_axes.plot(rois, energies, 'o')
 
+class MogonioCalibrationPlot(PlotWindow):
+
+    def __init__(self, *args, **kwargs):
+        # Inheritance
+        PlotWindow.__init__(self, plot_type='MogonioCalibration', *args, **kwargs)
+
+        # Choose a data point
+        self.widgets['btn_pick_data_point'] = ttk.Button(self.widgets['frame_artist_widgets'], text='Pick calibration data points')
+        self.widgets['btn_pick_data_point']["command"] = self.action_btn_pick_data_point
+        self.widgets['btn_pick_data_point'].pack(side=tk.LEFT, padx=10, pady=5)
+
+        self.mogonio_calib_points = []
+        self.mogonio_calib_energies = []
+
+        self.show()
+        self.plot()
+
+    def plot(self):
+        p = self.parameters
+
+        normalized_data = np.sum(np.divide(self.data[:, p['intensity_columns']], self.normalization_value), axis=1) - self.base_value/self.normalization_value
+
+        # Add plot line of the sum
+        label = '<Fig. ' + str(self.figure_number) + '; Mogonio Calibration XAS>'
+        artist, = self.main_axes.plot(self.mogonio_to_energy(), normalized_data, picker=self.picker_tolerance, label=label)
+        self.select_artist(artist, None, None)
+        self.action_btn_derivative()
+        self.action_btn_quick_normalization()
+        self.disable_picker()
+        self.plot_redraw()
+
+    def action_btn_pick_data_point(self, *args, **kwargs):
+        if not self.pick_data_points_flag:
+            self.pick_data_points_flag = True
+            self.widgets['btn_pick_data_point']['text'] = 'Please double-click on two data points...'
+            self.pick_data_point_connection = self.canvas.mpl_connect('button_press_event', self.action_pick_data_point_click)
+        else:
+            self.widgets['btn_pick_data_point']['text'] = 'Pick calibration data points'
+            self.pick_data_points_flag = False
+            self.canvas.mpl_disconnect(self.pick_data_point_connection)
+            self.action_find_mogonio_params()
+
+    def action_pick_data_point_click(self, event, *args, **kwargs):
+        if event.dblclick and event.inaxes == self.main_axes:
+            x = event.xdata
+            y = event.ydata
+            if self.application:
+                self.log('* Clicked at data point at %f, %f' % (x, y) )
+                #self.main_axes.plot(x, y, '+', markerfacecolor='black', markeredgecolor='black', markeredgewidth=2.0, markersize=10.0)
+                self.main_axes.vlines(x, 0, 1, linewidth=1, color='black', linestyles='dashed') 
+                self.mogonio_calib_points.append(x)
+                self.fig.canvas.draw()
+                self.mogonio_calib_energies.append(float(tkSimpleDialog.askstring("Enter energy", "Energy (keV)", parent=self)))
+    
+    def action_find_mogonio_params(self, *args, **kwargs):
+
+        def residuals(p, energy, mogonio):
+            A, B = p
+            hc = 1239.8 # nm.eV
+            a = 0.543102 # lattice parameter for Si, in nm 
+            miller_indices = [1, 1, 1]
+            m = miller_indices
+            return energy - (hc * np.sqrt(m[0]**2 + m[1]**2 + m[2]**2)/(2*a*np.sin(np.radians(A + B*mogonio))))/1000.0
+
+        p0 = [-0.6, 1.0]
+        mogonio = np.array(self.mogonio_calib_points)
+        energy =  np.array(self.mogonio_calib_energies)
+        plsq = scipy.optimize.leastsq(residuals, p0, args=(energy, mogonio))
+
+        self.log('* Found parameters A = %f, B = %f.' % (plsq[0][0], plsq[0][1]) )
+        self.application.widgets['entry_incoming_energy_calib_param_A'].stringvar.set(plsq[0][0])
+        self.application.widgets['entry_incoming_energy_calib_param_B'].stringvar.set(plsq[0][1])
+        self.application.widgets['cb_mogonio_calib'].var.set(True)
+
 class ClipboardPlot(PlotWindow):
 
     def __init__(self, *args, **kwargs):
@@ -892,17 +1004,6 @@ class ClipboardPlot(PlotWindow):
 
             smooth_data = np.convolve(discrete_gauss_y, np.concatenate((d[1, np.newaxis], d[0, np.newaxis], d, d[-1, np.newaxis], d[-2, np.newaxis])), mode='same')
             self.selected_artist['artist'].set_ydata(smooth_data[2:-2])
-        self.fig.canvas.draw()
-
-    def action_btn_derivative(self, *args, **kwargs):
-        if self.selected_artist is not None:
-            y = self.selected_artist['artist'].get_ydata()
-            x = self.selected_artist['artist'].get_xdata()
-            # Border effects may exist
-            derivative_data = np.convolve(np.array([-1, 0, 1]), y, mode='same')
-            delta_data = np.convolve(np.array([-1, 0, 1]), x, mode='same')
-            derivative_data = np.divide(derivative_data, delta_data)
-            self.main_axes.plot(x, derivative_data, picker=self.picker_tolerance, label='<Derivative of ' + self.selected_artist['artist'].get_label() + '>')
         self.fig.canvas.draw()
 
     def action_btn_normalization_single(self, *args, **kwargs):

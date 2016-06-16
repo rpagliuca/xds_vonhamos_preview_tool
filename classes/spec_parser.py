@@ -76,7 +76,7 @@ class SpecParser:
                             'command': scan_command,
                             'motors_names': motors_names,
                             'motors_positions': motors_positions,
-                            'columns_names': ['row_number', 'calculated_energy'] + columns_names, # append row_number column
+                            'columns_names': ['row_number', ] + columns_names, # append row_number column
                             'exposure_time': exposure_time,
                             'date': scan_date,
                             'data_lines': list(),
@@ -92,16 +92,12 @@ class SpecParser:
 
                         #Ordered dict is too slow!!!!!!
 
-                        if mogonio_index is None:
-                            calculated_energy = 0
-                        else:
-                            calculated_energy = self.mogonio_to_energy(columns_values[mogonio_index])
-                        self.scans[scan_id_prefix]['data_values'].append([row_number+1, str(calculated_energy)] + columns_values)
-                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = [row_number+1, str(calculated_energy)] + columns_values
+                        self.scans[scan_id_prefix]['data_values'].append([row_number+1, ] + columns_values)
+                        self.scans[scan_id_prefix]['data_values_indexed'][row_number] = [row_number+1, ] + columns_values
                         self.scans[scan_id_prefix]['data_lines'].append(line.replace('\n', '').replace('\s', ''))
                         # Fix for the cases where there is no header with columns names (CSV, etc)
-                        # Accounting two default columns: row_number and calculated_energy
-                        if len(self.scans[scan_id_prefix]['columns_names']) == 2:
+                        # Accounting one default column: row_number
+                        if len(self.scans[scan_id_prefix]['columns_names']) == 1:
                             self.scans[scan_id_prefix]['columns_names'] = self.scans[scan_id_prefix]['columns_names'] + ['col'+str(x) for x in range(0, len(self.scans[scan_id_prefix]['data_values'])+1)]
                         row_number += 1
 

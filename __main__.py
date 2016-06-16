@@ -76,8 +76,8 @@ class Application(ttk.Frame):
         self.widgets['btn_open']["command"] = self.action_select_file
         self.widgets['btn_open'].grid(row=row, column=0, sticky="nsew", pady=(0, 0))
 
-        self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['open_file_frame'], text='Auto refresh')
-        self.widgets['cb_auto_refresh'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(0, 0))
+        #self.widgets['cb_auto_refresh'] = Checkbox(self.widgets['open_file_frame'], text='Auto refresh')
+        #self.widgets['cb_auto_refresh'].grid(row=row, column=1, rowspan=rowspan, sticky="nsew", pady=(0, 0))
 
         tk.Grid.columnconfigure(self.widgets['open_file_frame'], 0, weight=1)
         tk.Grid.rowconfigure(self.widgets['open_file_frame'], 0, weight=1)
@@ -111,7 +111,7 @@ class Application(ttk.Frame):
         # Entry Energy Column
         row += rowspan
         rowspan = 1
-        self.widgets['entry_energy_column'] = LabeledEntry(self, 'Incoming energy: ', 'energy')
+        self.widgets['entry_energy_column'] = LabeledEntry(self, 'Energy/Mogonio col.: ', 'energy')
         self.widgets['entry_energy_column'].grid(row=row, column=0, sticky="nsew", pady=(0, 10))
 
         ## Intensity Formula
@@ -158,41 +158,41 @@ class Application(ttk.Frame):
         self.widgets['calib_frame'] = ttk.Frame(self)
 
         # Incoming energy calibration label
-        self.widgets['label_incoming_energy_calib'] = ttk.Label(self.widgets['calib_frame'], text='Incoming energy calibration:')
+        self.widgets['label_incoming_energy_calib'] = ttk.Label(self.widgets['calib_frame'], text='Convert from mogonio to energy:')
         self.widgets['label_incoming_energy_calib'].grid(row=0, column=0, columnspan=3, sticky="nsw", pady=(0, 2))
 
         # Checkbox use calibration
-        self.widgets['cb_calib'] = Checkbox(self.widgets['calib_frame'], text='Enabled')
-        self.widgets['cb_calib'].grid(row=1, column=0, sticky="nsw", pady=(0, 2), padx=(0,2))
+        self.widgets['cb_mogonio_calib'] = Checkbox(self.widgets['calib_frame'], text='Enabled')
+        self.widgets['cb_mogonio_calib'].grid(row=1, column=0, sticky="nsw", pady=(0, 2), padx=(0,2))
 
         # Button import calib
         self.widgets['btn_incoming_energy_calib_import'] = ttk.Button(self.widgets['calib_frame'])
         self.widgets['btn_incoming_energy_calib_import']["text"] = "Import"
-        self.widgets['btn_incoming_energy_calib_import']["command"] = self.import_emitted_energy_calibration
+        self.widgets['btn_incoming_energy_calib_import']["command"] = self.import_mogonio_energy_calibration
         self.widgets['btn_incoming_energy_calib_import'].grid(row=1, column=1, sticky="nsew", pady=(0,2), padx=(0,2))
 
         # Button export calib
         self.widgets['btn_incoming_energy_calib_export'] = ttk.Button(self.widgets['calib_frame'])
         self.widgets['btn_incoming_energy_calib_export']["text"] = "Export"
-        self.widgets['btn_incoming_energy_calib_export']["command"] = self.export_emitted_energy_calibration
+        self.widgets['btn_incoming_energy_calib_export']["command"] = self.export_mogonio_energy_calibration
         self.widgets['btn_incoming_energy_calib_export'].grid(row=1, column=2, sticky="nsew", pady=(0,2))
 
         # Entry Param A
         row += rowspan
         rowspan = 1
-        self.widgets['entry_incoming_energy_calib_param_A'] = LabeledEntry(self.widgets['calib_frame'], 'A: ', '0', 5)
+        self.widgets['entry_incoming_energy_calib_param_A'] = LabeledEntry(self.widgets['calib_frame'], 'A: ', '', 8)
         self.widgets['entry_incoming_energy_calib_param_A'].grid(row=2, column=0, sticky="nsew", pady=(0, 2), padx=(0,2))
 
         # Entry Param B
         row += rowspan
         rowspan = 1
-        self.widgets['entry_incoming_energy_calib_param_B'] = LabeledEntry(self.widgets['calib_frame'], 'B: ', '0', 5)
+        self.widgets['entry_incoming_energy_calib_param_B'] = LabeledEntry(self.widgets['calib_frame'], 'B: ', '', 8)
         self.widgets['entry_incoming_energy_calib_param_B'].grid(row=2, column=1, sticky="nsew", pady=(0, 2), padx=(0,2))
 
         # Button Fit
         self.widgets['btn_incoming_energy_calib_fit'] = ttk.Button(self.widgets['calib_frame'])
         self.widgets['btn_incoming_energy_calib_fit']["text"] = "Calib. Wizard"
-        self.widgets['btn_incoming_energy_calib_fit']["command"] = self.export_emitted_energy_calibration
+        self.widgets['btn_incoming_energy_calib_fit']["command"] = self.action_mogonio_calibration_wizard
         self.widgets['btn_incoming_energy_calib_fit'].grid(row=2, column=2, sticky="nsew", pady=(0,2))
 
         # Emitted energy calibration label
@@ -252,7 +252,6 @@ class Application(ttk.Frame):
         column = 1
         row = 0
         rowspan = row_expandable+1
-        print rowspan
         colspan = 2
         self.widgets['data_frame'] = ttk.Frame(self)
         self.widgets['data_frame'].grid(row=row, column=column, rowspan=rowspan, columnspan=colspan, sticky="nsew", padx=(10, 0))
@@ -360,7 +359,11 @@ class Application(ttk.Frame):
                     'i0': 'entry_i0_column',
                     'energy': 'entry_energy_column',
                     'formula': 'entry_pilatus_formula',
-                    'annotations': 'text_notes'
+                    'annotations': 'text_notes',
+                    'mogonio_calib_a': 'entry_incoming_energy_calib_param_A',
+                    'mogonio_calib_b': 'entry_incoming_energy_calib_param_B',
+                    'mogonio_calibration_enabled': 'cb_mogonio_calib',
+                    'emitted_energy_calibration_enabled': 'cb_calib'
                   }
 
     def maximize_window(self):
@@ -428,9 +431,10 @@ class Application(ttk.Frame):
         self.config_ini = lib.configparser.ConfigParser()
         self.config_ini_file = os.path.join(os.path.expanduser('~'), 'xds-vonhamos-preview-tool-settings.ini')
         try:
-            self.config_ini.readfp(codecs.open(self.config_ini_file, 'r', 'utf8'))
-            self.default_open_dir = self.config_ini.get('global', 'default_open_dir') 
-            self.default_open_file = self.config_ini.get('global', 'default_open_file') 
+            with codecs.open(self.config_ini_file, 'r', 'utf8') as configfile:
+                self.config_ini.readfp(configfile)
+                self.default_open_dir = self.config_ini.get('global', 'default_open_dir') 
+                self.default_open_file = self.config_ini.get('global', 'default_open_file') 
         except:
             self.debug_log('Error reading ' + self.config_ini_file)
 
@@ -469,9 +473,11 @@ class Application(ttk.Frame):
             # Clear calibration box, to avoid confusion for the user
             self.widgets['calib_tree'].clear()
             self.widgets['cb_calib'].var.set(False)
+            self.widgets['cb_mogonio_calib'].var.set(False)
 
             try:
-                self.file_config_ini.readfp(codecs.open(self.file_config_ini_file, 'r', 'utf8'))
+                with codecs.open(self.file_config_ini_file, 'r', 'utf8') as configfile:
+                    self.file_config_ini.readfp(configfile)
             except:
                 self.debug_log('Error reading ' + self.file_config_ini_file)
 
@@ -496,9 +502,20 @@ class Application(ttk.Frame):
                     pair = calib_pair.split(',')
                     item_id = w.append(["%.1f" % float(pair[0]), "%.4f" % float(pair[1])], {'roi': float(pair[0]), 'energy': float(pair[1])})
                     w.see(item_id)
-                    self.widgets['cb_calib'].var.set(True)
             except:
                 self.debug_log('Error reading config "Calibration"')
+
+            try:
+               if self.file_config_ini.get('project', 'mogonio_calibration_enabled') == '1': 
+                    self.widgets['cb_mogonio_calib'].var.set(True)
+            except:
+                pass
+
+            try:
+               if self.file_config_ini.get('project', 'emitted_energy_calibration_enabled') == '1': 
+                    self.widgets['cb_calib'].var.set(True)
+            except:
+                pass
                 
             self.log('======== OPEN =========')
             self.log('* Loaded path ' + self.file_path)
@@ -605,6 +622,12 @@ class Application(ttk.Frame):
             self.file_config_ini.add_section('project')
 
         for config in self.configs:
+            # Ducktyping for different kind of widgets
+            # Checkboxes
+            try:
+                self.file_config_ini.set('project', config, str(self.widgets[self.configs[config]].var.get()))
+            except:
+                pass
             # Entry widgets
             try:
                 self.file_config_ini.set('project', config, self.widgets[self.configs[config]].stringvar.get())
@@ -631,7 +654,11 @@ class Application(ttk.Frame):
 
     def export_emitted_energy_calibration(self, *args, **kwargs):
         config = lib.configparser.ConfigParser()
-        file_path = fd.asksaveasfilename(initialdir=self.default_open_dir, defaultextension='.vhc', filetypes=['"Von Hamos calibration file" .vhc'])
+        file_path = fd.asksaveasfilename(initialdir=self.default_open_dir, defaultextension='.vhe', filetypes=['"Von Hamos emitted energy calibration file" .vhe'])
+
+        if not file_path:
+            return
+
         config.add_section('project')
         calibration_data = self.widgets['calib_tree'].get_data()
         calib_string = ''
@@ -642,31 +669,75 @@ class Application(ttk.Frame):
         with codecs.open(file_path, 'w', 'utf8') as configfile:
             config.write(configfile)
 
+    def export_mogonio_energy_calibration(self, *args, **kwargs):
+        config = lib.configparser.ConfigParser()
+        file_path = fd.asksaveasfilename(initialdir=self.default_open_dir, defaultextension='.vhm', filetypes=['"Von Hamos mogonio calibration file" .vhm'])
+
+        if not file_path:
+            return
+
+        config.add_section('project')
+        config.set('project', 'Mogonio_Calibration_A', self.widgets['entry_incoming_energy_calib_param_A'].stringvar.get())
+        config.set('project', 'Mogonio_Calibration_B', self.widgets['entry_incoming_energy_calib_param_B'].stringvar.get())
+        with codecs.open(file_path, 'w', 'utf8') as configfile:
+            config.write(configfile)
+
     def import_emitted_energy_calibration(self, *args, **kwargs):
         config = lib.configparser.ConfigParser()
-        file_path = fd.askopenfilename(initialdir=self.default_open_dir, defaultextension='.vhc', filetypes=['"Von Hamos calibration file" .vhc'])
-        if file_path:
-            # Clear calibration box, to avoid confusion for the user
-            self.widgets['calib_tree'].clear()
-            self.widgets['cb_calib'].var.set(False)
-            try:
-                config.readfp(codecs.open(file_path, 'r', 'utf8'))
-            except:
-                self.debug_log('Error reading ' + file_path)
-            try:
-                w = self.widgets['calib_tree']
-                calib_list = config.get('project', 'Calibration').split(';') 
-                for calib_pair in calib_list:
-                    pair = calib_pair.split(',')
-                    item_id = w.append(["%.1f" % float(pair[0]), "%.4f" % float(pair[1])], {'roi': float(pair[0]), 'energy': float(pair[1])})
-                    w.see(item_id)
-                    self.widgets['cb_calib'].var.set(True)
-            except:
-                self.debug_log('Error reading config "Calibration"')
+        file_path = fd.askopenfilename(initialdir=self.default_open_dir, defaultextension='.vhe', filetypes=['"Von Hamos emitted energy calibration file" .vhe'])
+
+        if not file_path:
+            return
+
+        # Clear calibration box, to avoid confusion for the user
+        self.widgets['calib_tree'].clear()
+        self.widgets['cb_calib'].var.set(False)
+        try:
+            with codecs.open(file_path, 'r', 'utf8') as configfile:
+                config.readfp(configfile)
+        except:
+            self.debug_log('Error reading ' + file_path)
+        try:
+            w = self.widgets['calib_tree']
+            calib_list = config.get('project', 'Calibration').split(';') 
+            for calib_pair in calib_list:
+                pair = calib_pair.split(',')
+                item_id = w.append(["%.1f" % float(pair[0]), "%.4f" % float(pair[1])], {'roi': float(pair[0]), 'energy': float(pair[1])})
+                w.see(item_id)
+                self.widgets['cb_calib'].var.set(True)
+        except:
+            self.debug_log('Error reading config "Calibration"')
+
+    def import_mogonio_energy_calibration(self, *args, **kwargs):
+        config = lib.configparser.ConfigParser()
+        file_path = fd.askopenfilename(initialdir=self.default_open_dir, defaultextension='.vhm', filetypes=['"Von Hamos mogonio calibration file" .vhm'])
+
+        if not file_path:
+            return
+
+        # Clear calibration box, to avoid confusion for the user
+        self.widgets['entry_incoming_energy_calib_param_A'].stringvar.set('')
+        self.widgets['entry_incoming_energy_calib_param_B'].stringvar.set('')
+        try:
+            with codecs.open(file_path, 'r', 'utf8') as configfile:
+                config.readfp(configfile)
+        except:
+            self.debug_log('Error reading ' + file_path)
+        try:
+            w = self.widgets['calib_tree']
+            self.widgets['entry_incoming_energy_calib_param_A'].stringvar.set(config.get('project', 'Mogonio_Calibration_A'))
+            self.widgets['entry_incoming_energy_calib_param_B'].stringvar.set(config.get('project', 'Mogonio_Calibration_B'))
+        except:
+            self.debug_log('Error reading config "Mogonio_Calibration_A and/or Mogonio_Calibration_B"')
 
     def action_xes(self):
         self.save_project_config()
         self.plot_xes(self.get_selected_data())
+
+    def action_mogonio_calibration_wizard(self):
+        self.save_project_config()
+        self.widgets['cb_mogonio_calib'].var.set(0)
+        self.plot_mogonio_calibration_wizard(self.get_selected_data())
 
     def action_rxes(self):
         self.save_project_config()
@@ -675,6 +746,19 @@ class Application(ttk.Frame):
     def action_herfd(self):
         self.save_project_config()
         self.plot_herfd(self.get_selected_data())
+
+    def plot_mogonio_calibration_wizard(self, data):
+
+        self.log('======== Mogonio Calibration ==========')
+        self.figure_number += 1
+        self.log('* Figure %.0f - Mogonio Calibration - %s' % (self.figure_number, os.path.basename(self.file_path))) 
+
+        # Prepare numpy array
+        parameters = self.get_plot_parameters_and_validate(data)
+        nparray = Tools.mixed_array_to_float(data)
+
+        # Create a new plot window
+        plot = MogonioCalibrationPlot(master = self.master, parameters = parameters, data = nparray, application = self, figure_number = self.figure_number)
 
     def plot_xes(self, data):
 
@@ -747,7 +831,9 @@ class Application(ttk.Frame):
         #if isinstance(parameters['i0_column'], (bool)) and not parameters['i0_column']:
         #    self.log('* No I0 column was selected')
         if parameters['use_calibration']:
-            self.log('* Using energy calibration')
+            self.log('* Using emitted energy calibration')
+        if parameters['use_mogonio_calibration']:
+            self.log('* Using mogonio energy calibration')
 
     def get_plot_parameters(self, data):
 
@@ -784,6 +870,9 @@ class Application(ttk.Frame):
         rois_formula = self.widgets['entry_pilatus_formula'].stringvar.get()
         use_calibration = self.widgets['cb_calib'].var.get()
         calibration_data = self.widgets['calib_tree'].get_data()
+        use_mogonio_calibration = self.widgets['cb_mogonio_calib'].var.get()
+        mogonio_calibration_a = float(self.widgets['entry_incoming_energy_calib_param_A'].stringvar.get())
+        mogonio_calibration_b = float(self.widgets['entry_incoming_energy_calib_param_B'].stringvar.get())
 
         parameters = {
             'rois_signal_columns': rois_signal_columns,
@@ -797,9 +886,12 @@ class Application(ttk.Frame):
             'rois_bg2_names': rois_bg2_names,
             'rois_formula': rois_formula,
             'use_calibration': use_calibration,
+            'use_mogonio_calibration': use_mogonio_calibration,
             'calibration_data': calibration_data,
             'intensity_columns': intensity_columns,
             'intensity_names': intensity_names,
+            'mogonio_calibration_a': mogonio_calibration_a,
+            'mogonio_calibration_b': mogonio_calibration_b,
             'row_number_column': 0,
         }
         return parameters
@@ -870,5 +962,5 @@ root.geometry("1000x700+30+30") # width x height + padding_x + padding_y
 
 # Init Application
 app = Application(master=root)
-app.after(0, app.timer)
+#app.after(0, app.timer)
 app.mainloop()
