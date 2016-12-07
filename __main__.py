@@ -871,8 +871,15 @@ class Application(ttk.Frame):
         use_calibration = self.widgets['cb_calib'].var.get()
         calibration_data = self.widgets['calib_tree'].get_data()
         use_mogonio_calibration = self.widgets['cb_mogonio_calib'].var.get()
-        mogonio_calibration_a = float(self.widgets['entry_incoming_energy_calib_param_A'].stringvar.get())
-        mogonio_calibration_b = float(self.widgets['entry_incoming_energy_calib_param_B'].stringvar.get())
+        try:
+            mogonio_calibration_a = float(self.widgets['entry_incoming_energy_calib_param_A'].stringvar.get())
+        except:
+            mogonio_calibration_a = 1.0
+
+        try:
+            mogonio_calibration_b = float(self.widgets['entry_incoming_energy_calib_param_B'].stringvar.get())
+        except:
+            mogonio_calibration_b = 1.0
 
         parameters = {
             'rois_signal_columns': rois_signal_columns,
